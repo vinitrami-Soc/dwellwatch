@@ -59,6 +59,7 @@ class Incident:
     entity: str
     signals: tuple[Signal, ...]
     severity: Severity
+    reason: str = ""  # why this is an incident and why this severity, in a sentence
 
     def __post_init__(self) -> None:
         if not self.signals:

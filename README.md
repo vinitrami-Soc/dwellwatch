@@ -14,10 +14,11 @@
   <img alt="Mapped to MITRE ATT&CK" src="https://img.shields.io/badge/mapped%20to-MITRE%20ATT%26CK-c00">
 </p>
 
-> **Status: in progress.** Phases 0 to 3 are done: the replay engine, 26 Sigma rules across all
+> **Status: in progress.** Phases 0 to 4 are done: the replay engine, 26 Sigma rules across all
 > six stages, tested on real Atomic Red Team, ransomware and attack-sample telemetry and converted
-> for Wazuh, Splunk and Sentinel. Correlation, the dwell-time metric, the IntelPulse webhook and
-> the help-desk pages are still to come. See the [roadmap](#roadmap).
+> for Wazuh, Splunk and Sentinel, and the correlation engine that turns them into incidents. The
+> dwell-time metric, the IntelPulse webhook and the help-desk pages are still to come. See the
+> [roadmap](#roadmap).
 
 **Headline metric:** _not measured yet._ Once the chain has been emulated, this line will read
 "First alert fired N minutes before encryption in X of Y emulated runs", with the denominator and
@@ -134,10 +135,33 @@ but for the last three that is a regression check, not an unseen test. Still mis
 ## When a signal becomes an incident
 
 One `vssadmin delete shadows` on its own might be an administrator. A password reset, then NTDS.dit
-access, then shadow-copy deletion on the same account is an attack. DwellWatch raises an incident
-when **two or more distinct stages appear on the same user or host within 24 hours**, and treats
-any incident that includes credential theft (stage 3) or backup destruction (stage 5) as critical.
-This is risk-based alerting: individual rules stay sensitive, and correlation keeps the noise down.
+access, then shadow-copy deletion on the same account is an attack.
+[`correlate.py`](src/dwellwatch/correlate.py) raises an incident when **two or more distinct
+stages appear on the same host or account within a rolling 24 hours**, and scales its severity:
+
+- two stages are high; three or more, or two within an hour of each other, are critical;
+- any incident that includes credential theft (stage 3) or backup destruction (stage 5) is
+  critical whatever the count, and none is less severe than its worst signal (a touched canary
+  file is critical on its own);
+- SYSTEM, service and machine accounts never link signals, since every Windows host has them.
+
+Every incident says why, in a sentence:
+
+```
+$ python -m dwellwatch.correlate datasets/attack_data/datasets/malware/ransomware_ttp/data2/windows-sysmon.log
+84 signal(s), 1 incident(s)
+
+CRITICAL  host win-dc-385  2021-06-21 14:30Z to 2021-06-21 14:31Z  84 signal(s)
+  Stages 5 (backup destruction) and 6 (encryption) on host win-dc-385 within 1m; critical because it includes backup destruction.
+```
+
+On the real recordings, the 20 pinned single-technique runs (up to 66 signals each) raise no
+incident, and across the unseen recordings four incidents appear, each on a real multi-stage
+attack: Conti's Cobalt Strike session, an Atomic Red Team run, a ransomware run, and Clop, whose
+incident leans on one stage 3 false positive. Details are in
+[docs/lab-architecture.md](docs/lab-architecture.md#correlation-on-real-data). For SIEMs, the
+same rule is written in Sigma's correlation syntax in
+[`sigma/correlation/two_stage_24h.yml`](sigma/correlation/two_stage_24h.yml).
 
 ## How it runs
 
@@ -173,7 +197,7 @@ express, and the converter problems found on the way, are in the
 - [x] **Phase 1:** replay engine and the first detections (stage 5, backup destruction)
 - [x] **Phase 2:** conversion to Wazuh, SPL and KQL
 - [x] **Phase 3:** rules for stages 1 to 4 and 6
-- [ ] **Phase 4:** the correlation engine
+- [x] **Phase 4:** the correlation engine
 - [ ] **Phase 5:** the dwell-time metric
 - [ ] **Phase 6:** IntelPulse webhook integration
 - [ ] **Phase 7:** help-desk checklist and small-business readiness page
@@ -195,13 +219,15 @@ docs/             lab architecture, threat model, detection catalogue, method
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-datasets/fetch.sh          # about 69 MB of real telemetry; without it the real-data tests skip
+datasets/fetch.sh          # about 77 MB of real telemetry; without it the real-data tests skip
 ruff check
 pytest
 python -m dwellwatch.convert   # after changing a rule: regenerate converted/ (make convert)
 
 # replay any Windows event XML or evtx_dump JSON Lines file through the rules
 python -m dwellwatch.replay datasets/attack_data/datasets/attack_techniques/T1490/atomic_red_team/windows-sysmon.log
+# ...and correlate the signals of one or more files, read as one timeline, into incidents
+python -m dwellwatch.correlate datasets/attack_data/datasets/malware/ransomware_ttp/data2/windows-sysmon.log
 ```
 
 ## Safety

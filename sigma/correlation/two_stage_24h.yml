@@ -1,0 +1,108 @@
+# The two-stages-within-24-hours rule in Sigma's correlation syntax, for readers who deploy the
+# rules in a SIEM rather than running src/dwellwatch/correlate.py, which is the reference.
+#
+# Sigma correlation counts events or distinct field values; it cannot count "distinct stages"
+# across 26 rules whose events carry different fields. So these rules run over DwellWatch's own
+# alerts, as the SIEM stores them: one event per rule firing, carrying
+#   dwellwatch_stage   1 to 6 (in Wazuh, the rule's dwellwatch_stageN group)
+#   host               the host the event came from
+#   user               the account it names, if any
+# What they cannot carry, and correlate.py does: the rolling window (SIEM translations such as
+# Splunk's `bin` use fixed 24-hour buckets, so a pair straddling midnight can be missed), the
+# severity scale (critical for stage 3 or 5, three or more stages, or two stages within an hour),
+# and the de-duplication of host and account incidents.
+title: DwellWatch Alert
+id: d1af991a-39e7-48a5-a339-074c7ff25bf6
+name: dwellwatch_alert
+status: experimental
+description: Any DwellWatch alert, as the SIEM stores it with its stage.
+author: Vinit Rami
+date: 2026-09-28
+logsource:
+  product: dwellwatch
+  service: alerts
+detection:
+  selection:
+    dwellwatch_stage: [1, 2, 3, 4, 5, 6]
+  condition: selection
+level: informational
+---
+title: DwellWatch Alert Naming A Person's Account
+id: ccd418e0-2236-47a4-926c-22feb9eac611
+name: dwellwatch_alert_with_account
+status: experimental
+description: |
+  A DwellWatch alert whose account can link it to others. Service identities are left out:
+  every Windows host has them, so they would tie unrelated activity together.
+author: Vinit Rami
+date: 2026-09-28
+logsource:
+  product: dwellwatch
+  service: alerts
+detection:
+  selection:
+    dwellwatch_stage: [1, 2, 3, 4, 5, 6]
+  filter_service:
+    - user|startswith: 'NT AUTHORITY\'
+    - user|endswith:
+        - '\SYSTEM'
+        - '\LOCAL SERVICE'
+        - '\NETWORK SERVICE'
+        - '\ANONYMOUS LOGON'
+        - '$' # machine accounts
+    - user:
+        - 'SYSTEM'
+        - 'LOCAL SERVICE'
+        - 'NETWORK SERVICE'
+        - 'ANONYMOUS LOGON'
+        - '-'
+        - ''
+  condition: selection and not filter_service
+level: informational
+---
+title: Two Or More DwellWatch Stages On One Host Within 24 Hours
+id: d196f18b-0045-435c-b957-bc853f3821c7
+status: experimental
+description: |
+  Two different stages of the help-desk-led ransomware chain on the same host within 24 hours.
+  One vssadmin alert might be an administrator; a reset, then credential theft, then
+  shadow-copy deletion on the same host is an attack.
+author: Vinit Rami
+date: 2026-09-28
+correlation:
+  type: value_count
+  rules:
+    - dwellwatch_alert
+  group-by:
+    - host
+  timespan: 24h
+  condition:
+    field: dwellwatch_stage
+    gte: 2
+falsepositives:
+  - Hosts where administrators legitimately do two stages' worth of work in a day, such as a
+    service desk that resets passwords and then runs `net user /domain` on the same machine.
+level: high
+---
+title: Two Or More DwellWatch Stages On One Account Within 24 Hours
+id: abe730c3-08be-4f81-946f-b02d792a0a9f
+status: experimental
+description: |
+  Two different stages of the chain on the same account within 24 hours, on any hosts: the
+  reset lands on a domain controller, the discovery and theft on the machines the account
+  reaches next.
+author: Vinit Rami
+date: 2026-09-28
+correlation:
+  type: value_count
+  rules:
+    - dwellwatch_alert_with_account
+  group-by:
+    - user
+  timespan: 24h
+  condition:
+    field: dwellwatch_stage
+    gte: 2
+falsepositives:
+  - Service-desk and administrator accounts doing two stages' worth of routine work in a day.
+level: high

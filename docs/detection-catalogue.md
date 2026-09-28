@@ -262,3 +262,32 @@ Real-data results are in [lab-architecture.md](lab-architecture.md#stage-6-on-re
 
 All four rules report ATT&CK T1486 and have must-fire and must-stay-quiet tests in
 [`tests/test_replay_stage6.py`](../tests/test_replay_stage6.py).
+
+## Correlation: two stages within 24 hours
+
+The rules above are sensitive on purpose; [`correlate.py`](../src/dwellwatch/correlate.py) is
+what keeps them quiet. Its logic, severity scale and real-data results are in the
+[README](../README.md#when-a-signal-becomes-an-incident) and
+[lab-architecture.md](lab-architecture.md#correlation-on-real-data).
+
+For SIEMs, [`sigma/correlation/two_stage_24h.yml`](../sigma/correlation/two_stage_24h.yml) states
+the same rule in Sigma's correlation syntax: a `value_count` of distinct `dwellwatch_stage`
+values of at least 2, per `host` and per `user` (service identities left out), over 24 hours. It
+runs over DwellWatch's alerts as the SIEM stores them, because Sigma cannot count "stages" across
+rules whose events carry different fields. pySigma converts it for Splunk:
+
+```
+dwellwatch_stage IN (1, 2, 3, 4, 5, 6)
+| bin _time span=24h
+| stats dc(dwellwatch_stage) as value_count by _time host
+| search value_count >= 2
+```
+
+| Target | What it gets | What it loses against `correlate.py` |
+|---|---|---|
+| Splunk | The search above, and the same per `user` | Fixed day-long buckets rather than a rolling window; one severity; host and account incidents both reported |
+| Sentinel | Nothing generated: pySigma's Kusto backend has no correlation support | Everything; the KQL is a `summarize dcount(dwellwatch_stage) by bin(TimeGenerated, 24h), host`, written by hand |
+| Wazuh | Nothing generated | Wazuh's frequency rules count matches of one rule or group, not distinct stages. Each alert carries its `dwellwatch_stageN` group, so a per-stage-pair rule set is possible; it is not written yet |
+
+`tests/test_correlate.py` checks that the Sigma file states the same window, threshold and
+service identities as `correlate.py`, and that it converts for Splunk.

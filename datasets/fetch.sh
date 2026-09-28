@@ -38,6 +38,7 @@ datasets/attack_techniques/T1021.001/rdp_session_established/4624_10_logon.log  
 datasets/attack_techniques/T1486/dcrypt/windows-sysmon.log                           c70b712dbfa68c6d1e982f032b386cf8dcaae031b34e380fdb875df4d9c838d3
 datasets/attack_techniques/T1486/bitlocker_sus_commands/bitlocker_sus_commands.log   9e1e4b875d2ae27e4b2c99e6403cf2f642d087f415af2a06c0b63e0556110002
 datasets/attack_techniques/T1486/sam_sam_note/windows-sysmon.log                     ffb8daf49a0cfbfe4514eba0f340580ac88e0055a313c4880e64b251bf6da208
+datasets/malware/ransomware_ttp/data2/windows-sysmon.log                             b719f8681acc246580b2bfc27e7d4fde91adffbdc42cf91d08a0731c5d879ba4
 "
 
 sha256() {

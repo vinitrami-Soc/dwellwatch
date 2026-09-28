@@ -9,7 +9,7 @@ DwellWatch runs in two modes that share the same rules and the same Python code.
 
 ## Replay datasets
 
-`datasets/fetch.sh` fetches twenty files from one pinned commit of attack_data
+`datasets/fetch.sh` fetches twenty-one files from one pinned commit of attack_data
 (`52c9d8a53167872293c9d0ca359b5166fb25e243`) and checks each one against a pinned SHA-256.
 Nothing it fetches is committed: `datasets/` is gitignored apart from the script.
 
@@ -27,6 +27,7 @@ Nothing it fetches is committed: `datasets/` is gitignored apart from the script
 | `T1486/dcrypt/windows-sysmon.log` | DiskCryptor downloaded, installed and run, as in Atomic Red Team's T1486 DiskCryptor test and Mamba ransomware | 343 Sysmon | Attack: each DiskCryptor binary fires; its installer stub does not |
 | `T1486/bitlocker_sus_commands/bitlocker_sus_commands.log` | `manage-bde -protectors -delete C:` | 1 Sysmon | Attack: it fires |
 | `T1486/sam_sam_note/windows-sysmon.log` | A SamSam ransom-note run whose Sysmon log holds no note, but does hold the Splunk forwarder writing its own `README.txt`, among 8,500 events | 8,491 Sysmon | Control: nothing fires |
+| `../malware/ransomware_ttp/data2/windows-sysmon.log` | A ransomware run that deletes shadow copies and writes `HOW_TO_RESTORE_MY_FILES.txt` into 83 folders; first used as unseen data, pinned in Phase 4 | 4,623 Sysmon | Correlation: one critical incident, backup destruction and encryption within a minute |
 | `T1098/windows_multiple_passwords_changed/windows_multiple_passwords_changed.log` | An administrator resetting 40 accounts' passwords on a domain controller, with the PowerShell that did it | 345 (133 Security) | Attack: one stage 1 reset signal per reset, each naming the reset account |
 | `T1098/account_manipulation/xml-windows-security.log` | Accounts created, enabled and reset (21 resets), and four group adds: three to Domain Admins, one of them an account adding itself, and one to a workstation's `None` group | 430 Security | Attack and control: the Domain Admins adds fire; the `None` add, and 400 other account events, do not |
 | `T1098/dnsadmins_member_added/windows-security.log` | An account added to DnsAdmins, whose members can make the DNS service load code | 228 (173 Security) | Attack: the one add fires |
@@ -331,6 +332,43 @@ The same exercise found four ways a real export broke the replay reader, since f
 covered by tests: files with a UTF-8 byte-order mark, UTF-16 files (what PowerShell 5.1's `>`
 writes), unreadable formats reported as a confusing JSON error, and a missing file ending in a
 traceback. Reading is now streamed, so the largest file (166 MB) replays in 22 MB of memory.
+
+## Correlation on real data
+
+Each recording was replayed through all 26 rules and its signals correlated on their own
+(recordings come from different labs and years, so they are not one timeline).
+
+**No incident where there is only one technique.** None of the 20 pinned recordings, each of one
+technique, raises an incident, including the LSASS run with 66 signals and the bulk password
+reset with 40: every signal in each is the same stage. `pytest` pins this for all 20.
+
+**One incident for each multi-stage attack the rules see**, across the unseen recordings:
+
+| Recording | Incident | Stages | Within |
+|---|---|---|---|
+| Conti's Cobalt Strike session (attack_data) | critical, host `win-dc-58` | discovery (2), credential theft (3) | 1 minute |
+| PanacheSysmon Atomic Red Team run (EVTX-ATTACK-SAMPLES) | critical, host `msedgewin10` | discovery (2), credential theft (3), backup destruction (5) | 24 minutes |
+| `ransomware_ttp` data2 (attack_data, now pinned) | critical, host `win-dc-385` | backup destruction (5), 83 ransom notes (6) | 1 minute |
+| Clop, run a (attack_data) | critical, host `win-dc-654` | credential theft (3), backup destruction (5) | 7 minutes |
+
+The Clop incident has to be read with care: its stage 3 signal is the one false positive from
+stage 3's unseen round, Process Monitor opening LSASS, run by whoever recorded the sample. The
+backup destruction is Clop's. The host was under attack, but the incident is right for a wrong
+reason.
+
+**Attacks that stay single-stage, and why.** LockBit and Ryuk show only their binaries opening
+LSASS (stage 3); Chaos, REvil, Prestige and a second `ransomware_ttp` run only backup destruction
+(stage 5). Their other stages were either not in the recording or not detected; for Chaos,
+LockBit and Ryuk the missed stage is the ransom notes (stage 6), which counting the same note
+written into many folders would add.
+
+**What the SIEM translations lose.** [`sigma/correlation/two_stage_24h.yml`](../sigma/correlation/two_stage_24h.yml)
+expresses the rule in Sigma's correlation syntax over DwellWatch's own alerts. pySigma turns it
+into a Splunk search with `bin _time span=24h`, fixed day-long buckets: two stages either side of
+a bucket boundary are missed, where `correlate.py`'s rolling window catches them. The Sigma
+version also has one severity, not the scale, and no de-duplication of host and account
+incidents. pySigma's Kusto backend has no correlation support, so Sentinel users would write the
+equivalent KQL by hand.
 
 ## How replay evaluates a rule
 

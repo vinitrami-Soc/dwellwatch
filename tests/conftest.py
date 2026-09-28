@@ -10,8 +10,9 @@ ATTACK_DATA = ROOT / "datasets" / "attack_data" / "datasets" / "attack_technique
 
 
 def dataset(relative: str) -> Path:
-    """A fetched attack_data file. Skips without it, unless CI says the datasets must be there."""
-    path = ATTACK_DATA / relative
+    """A fetched attack_data file, under attack_techniques/ unless it starts with malware/. Skips
+    without it, unless CI says the datasets must be there."""
+    path = (ATTACK_DATA.parent if relative.startswith("malware/") else ATTACK_DATA) / relative
     if not path.is_file():
         message = f"{relative} not fetched; run datasets/fetch.sh"
         if os.environ.get("DWELLWATCH_REQUIRE_DATASETS"):
