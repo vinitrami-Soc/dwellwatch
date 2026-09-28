@@ -65,8 +65,13 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 On real data from Splunk's attack_data, the Atomic Red Team T1490 run (285 events) raises exactly
 one alert per targeted command, 4 in all, and none for the `cmd.exe` processes that launched them.
 A 7,010-event T1003.003 run, which uses vssadmin and wmic to *create* shadow copies, raises none.
-The same T1490 run also deletes shadow copies with wmic and PowerShell, and no rule covers those
-yet. Details and the exact commands are in [docs/lab-architecture.md](docs/lab-architecture.md).
+
+Replayed unchanged against recordings they were not written against (ransomware runs from
+attack_data, including Chaos, Clop, Conti, LockBit, REvil and Ryuk, plus all 278 EVTX-ATTACK-SAMPLES
+files), the rules fired on **14 of 14** in-scope destructive commands with **no false positives in
+392,824 events**. The same data shows what they miss: wmic and PowerShell shadow-copy deletion,
+Clop's `vssadmin resize shadowstorage`, and ransomware that deletes copies without a command line.
+Details, the exact commands and the misses are in [docs/lab-architecture.md](docs/lab-architecture.md).
 
 ## When a signal becomes an incident
 

@@ -96,6 +96,49 @@ What that run shows, and what it does not:
 `pytest` asserts all of the above. CI runs `datasets/fetch.sh` first and sets
 `DWELLWATCH_REQUIRE_DATASETS=1`, so a missing dataset fails the build instead of skipping.
 
+### Tested on data the rules were not written against
+
+The datasets above shaped the rules, so they cannot show how the rules generalise. On
+2026-09-28 the rules were also replayed, unchanged, against recordings they had never seen:
+
+- **Ransomware in attack_data** (same pinned commit): Chaos, Clop (two runs), Conti (three),
+  LockBit, Prestige, REvil (two), Ryuk, the `malware/ransomware_ttp` runs, and two more T1490
+  folders (`ransomware_notes`, `shadowcopy_del`). 15 files, 355,460 events.
+- **[EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES)**: all 278 `.evtx`
+  files, 37,364 events, converted twice with two independent parsers (the Rust `evtx` crate
+  behind `evtx_dump`, to JSON Lines; `python-evtx`, to XML). Both conversions gave the same
+  events and the same signals.
+
+The expected answer came from a separate keyword scan for every backup-related process
+(vssadmin, wbadmin, bcdedit, wmic shadowcopy, diskshadow, reagentc), labelled by hand as in or
+out of each rule's scope.
+
+| | Result |
+|---|---|
+| In-scope destructive commands | **14 of 14 fired**: vssadmin in `ransomware_notes`, Chaos, Clop (twice, as `vssadmin Delete Shadows`), Prestige and the EVTX Atomic run; bcdedit in `ransomware_notes`, Chaos, `ransomware_ttp` and the EVTX Atomic run (two each, except `ransomware_ttp` with one); wbadmin catalogue deletion in the EVTX Atomic run |
+| False positives | **0 in 392,824 events**, including the real clean-up commands `bcdedit ... recoveryenabled yes` and `bootstatuspolicy DisplayAllFailures`, `vssadmin list shadows`, `vssadmin create shadow`, `wmic shadowcopy` listing, and malware run from inside a shadow copy |
+
+What the same data showed is **not** caught yet:
+
+- **Clop shrinks shadow storage** with `vssadmin resize shadowstorage /maxsize=401MB` on six
+  drives, which makes Windows discard the existing shadow copies. The vssadmin rule looks only
+  for `delete shadows`.
+- **wmic and PowerShell deletion**: `wmic shadowcopy delete` (Chaos, the Atomic runs) and
+  `Get-CimInstance Win32_ShadowCopy | Remove-CimInstance` (`ransomware_ttp`).
+- **No command line at all**: the Conti, LockBit, REvil and Ryuk recordings contain no
+  command-line shadow-copy deletion. Whether those samples deleted copies in-process or never
+  reached that step, a process-creation rule cannot see it. That is the case stage 6 (file
+  activity) and correlation across stages exist for.
+- **A command that never ran**: in Chaos and `ransomware_notes`, `cmd.exe /c wbadmin delete
+  catalog` appears but no wbadmin process follows. On the Chaos host the command was handed to
+  `mmc.exe` with `wbadmin.msc`, so nothing was deleted. The rules alert on the process that does
+  the damage, not on the shell that asked for it, so neither run raised a wbadmin alert.
+
+The same exercise found four ways a real export broke the replay reader, since fixed and
+covered by tests: files with a UTF-8 byte-order mark, UTF-16 files (what PowerShell 5.1's `>`
+writes), unreadable formats reported as a confusing JSON error, and a missing file ending in a
+traceback. Reading is now streamed, so the largest file (166 MB) replays in 22 MB of memory.
+
 ## How replay evaluates a rule
 
 1. **Read** the file: Windows event XML with one `<Event>` per record (attack_data, `wevtutil`),

@@ -1,5 +1,6 @@
 """The replay engine itself: reading event files, normalising them, and evaluating Sigma."""
 
+import codecs
 import json
 import textwrap
 from datetime import UTC, datetime
@@ -7,7 +8,15 @@ from datetime import UTC, datetime
 import pytest
 
 from dwellwatch.models import Stage
-from dwellwatch.replay import UnsupportedRule, event_time, load_events, load_rule, replay
+from dwellwatch.replay import (
+    UnsupportedFormat,
+    UnsupportedRule,
+    event_time,
+    load_events,
+    load_rule,
+    main,
+    replay,
+)
 
 from conftest import ROOT, process_event
 
@@ -64,6 +73,60 @@ def test_reads_a_json_array_of_flat_events(tmp_path):
     path.write_text(json.dumps([process_event("whoami", "C:\\Windows\\System32\\whoami.exe")]))
     [event] = load_events(path)
     assert event["CommandLine"] == "whoami"
+
+
+@pytest.mark.parametrize("encode", [
+    lambda text: text.encode("utf-8-sig"),
+    lambda text: text.encode("utf-16"),  # what PowerShell 5.1's > and Out-File write
+    lambda text: codecs.BOM_UTF16_BE + text.encode("utf-16-be"),
+], ids=["utf-8 with BOM", "utf-16 LE", "utf-16 BE"])
+def test_reads_exports_windows_tools_write_with_a_byte_order_mark(tmp_path, encode):
+    path = tmp_path / "export.xml"
+    path.write_bytes(encode(SYSMON_XML + "\r\n" + SYSMON_XML + "\r\n"))
+    events = list(load_events(path))
+    assert len(events) == 2
+    assert events[1]["CommandLine"] == 'cmd /c "a & b"'
+
+
+def test_reads_pretty_printed_xml_inside_an_events_wrapper(tmp_path):
+    # wevtutil and python-evtx wrap records in <Events> and may spread one record over many lines,
+    # or put several on one.
+    pretty = SYSMON_XML.replace("><", ">\n<")
+    path = tmp_path / "export.xml"
+    path.write_text('<?xml version="1.0" encoding="utf-8"?>\n<Events>\n'
+                    + pretty + "\n" + SYSMON_XML + SYSMON_XML + "\n</Events>\n")
+    events = list(load_events(path))
+    assert len(events) == 3
+    assert {e["Image"] for e in events} == {"C:\\Windows\\System32\\cmd.exe"}
+
+
+def test_refuses_files_it_cannot_read_with_a_clear_error(tmp_path):
+    splunk_text = tmp_path / "windows-security.log"  # Splunk's classic WinEventLog text export
+    splunk_text.write_text("06/22/2021 10:40:38 AM\nLogName=Security\nEventCode=4688\n")
+    with pytest.raises(UnsupportedFormat, match="not Windows event XML"):
+        list(load_events(splunk_text))
+
+    broken_json = tmp_path / "broken.jsonl"
+    broken_json.write_text('{"EventID": "1"}\n\n{"EventID": \n')
+    with pytest.raises(UnsupportedFormat, match="line 3"):
+        list(load_events(broken_json))
+
+    broken_xml = tmp_path / "broken.xml"
+    broken_xml.write_text("<Event><System></Event>\n")
+    with pytest.raises(UnsupportedFormat, match="malformed event XML"):
+        list(load_events(broken_xml))
+
+
+def test_cli_lists_signals_and_reports_unreadable_files_without_a_traceback(tmp_path, capsys):
+    planted = tmp_path / "planted.jsonl"
+    planted.write_text(json.dumps(process_event("vssadmin delete shadows", "C:\\Windows\\System32\\vssadmin.exe")))
+    status = main([str(planted), str(tmp_path / "missing.log")])
+    out, err = capsys.readouterr()
+    assert status == 2
+    assert f"{planted}: 1 signal(s) from 1 event(s)" in out
+    assert "stage 5  T1490  high  WS01.lab.local  LAB\\jdoe  Shadow Copies Deleted With vssadmin" in out
+    assert "missing.log" in err
+    assert "Traceback" not in err
 
 
 def security_4688(**fields):
