@@ -1,0 +1,82 @@
+# The runs the headline metric is measured on (python -m dwellwatch.metric; method in
+# docs/metric-method.md). Each is one recording from splunk/attack_data, fetched and checked by
+# `datasets/fetch.sh --metric`, in which ransomware encrypted files. They are detonations: the
+# ransomware run on a lab machine, not a human-operated intrusion with weeks of dwell time.
+#
+# Everything below is labelled by hand from the events, not from DwellWatch's detections:
+#
+#   files            the recording, relative to attack_data's datasets/ folder
+#   encryption       where encryption starts: the first file written whose path matches `file` by a
+#                    process whose image matches `process` (regular expressions, any case). It is
+#                    the first ransom note, which ransomware writes as it encrypts each folder.
+#   false_positives  signals on activity that was not the attack, found when the rules were first
+#                    run on the recording. The metric leaves them out. Each is named by its rule
+#                    (id) and the second it fired (at, UTC), with the reason.
+#   seen             true when the rules or thresholds were written or tuned with this recording in
+#                    view. Only one run was not.
+runs:
+  - name: Chaos
+    files: [malware/chaos_ransomware/sysmon.log]
+    encryption: {process: '\\svchosts\.exe$', file: '\\read_it\.txt$'}
+    seen: true
+
+  - name: Chaos, spreading to root drives
+    files: [malware/chaos_ransomware/spread_in_root_drives/sysmon.log]
+    # The Chaos binary is named svchost.exe, in AppData\Roaming and C:\Temp; Windows' own is in System32.
+    encryption: {process: '\\(AppData\\Roaming|Temp)\\svchost\.exe$', file: '\\read_it\.txt$'}
+    false_positives:
+      - rule: 9760ca3f-fa6f-48c3-999d-1d433b26d851 # LSASS Memory Opened For Credential Theft
+        at: '2023-01-17T10:35:47Z'
+        why: Process Hacker, installed by whoever recorded the run, reading LSASS (access 0x1010)
+    seen: false
+
+  - name: Clop, run a
+    files: [malware/clop/clop_a/windows-sysmon.log]
+    encryption: {process: '\\clop\.exe$', file: '\\ClopReadMe\.txt$'}
+    false_positives:
+      - rule: 9760ca3f-fa6f-48c3-999d-1d433b26d851 # LSASS Memory Opened For Credential Theft
+        at: '2021-03-16T13:38:16Z'
+        why: Process Monitor (Procmon64.exe), run by whoever recorded the sample, opening LSASS
+    seen: true
+
+  - name: Clop, run b
+    files: [malware/clop/clop_b/windows-sysmon.log]
+    encryption: {process: '\\clop_mlwr_d\.exe$', file: '\\README_README\.txt$'}
+    seen: true
+
+  - name: Conti
+    files: [malware/conti/inf1/windows-sysmon.log]
+    # Encrypted over SMB from another machine, so the notes are written by the System process.
+    encryption: {process: '^System$', file: '\\readme\.txt$'}
+    seen: true
+
+  - name: LockBit
+    files: [malware/lockbit_ransomware/sysmon.log]
+    encryption: {process: '\\ConfirmEmail\.exe$', file: '\.README\.txt$'}
+    seen: true
+
+  - name: Prestige
+    files: [malware/prestige_ransomware/sysmon.log]
+    encryption: {process: '\\prestige_ransomware\.exe$', file: '\\README$'}
+    seen: true
+
+  - name: ransomware_ttp, data2
+    files: [malware/ransomware_ttp/data2/windows-sysmon.log]
+    encryption: {process: '\\cscript\.exe$', file: '\\HOW_TO_RESTORE_MY_FILES\.txt$'}
+    seen: true
+
+  - name: REvil, run 1
+    files: [malware/revil/inf1/windows-sysmon.log]
+    encryption: {process: '\\revil\.exe$', file: '\.html$'}
+    seen: true
+
+  - name: REvil, run 2
+    files: [malware/revil/inf2/windows-sysmon.log]
+    encryption: {process: '\\revil\.exe$', file: '\.html$'}
+    seen: true
+
+  - name: Ryuk
+    files: [malware/ryuk/windows-sysmon.log]
+    # Ryuk writes its notes from the svchost.exe it injects into.
+    encryption: {process: '\\svchost\.exe$', file: '\\RyukReadMe\.html$'}
+    seen: true

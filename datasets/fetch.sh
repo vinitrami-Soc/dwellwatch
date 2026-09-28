@@ -9,7 +9,9 @@
 # checks them the same way. Run it again at any time: it only fetches what is
 # missing or wrong.
 #
-# Usage: datasets/fetch.sh            (files land in datasets/attack_data/)
+# Usage: datasets/fetch.sh            the files the tests need (files land in datasets/attack_data/)
+#        datasets/fetch.sh --metric   those, plus the ransomware runs the headline metric is
+#                                     measured on (about 520 MB more; see datasets/runs.yml)
 set -euo pipefail
 
 REPO="https://github.com/splunk/attack_data"
@@ -40,6 +42,25 @@ datasets/attack_techniques/T1486/bitlocker_sus_commands/bitlocker_sus_commands.l
 datasets/attack_techniques/T1486/sam_sam_note/windows-sysmon.log                     ffb8daf49a0cfbfe4514eba0f340580ac88e0055a313c4880e64b251bf6da208
 datasets/malware/ransomware_ttp/data2/windows-sysmon.log                             b719f8681acc246580b2bfc27e7d4fde91adffbdc42cf91d08a0731c5d879ba4
 "
+
+# The ransomware runs of the headline metric (datasets/runs.yml), fetched only with --metric.
+METRIC_FILES="
+datasets/malware/chaos_ransomware/sysmon.log                                         2a8d2fe6e97a5e1e71135b6c430932685283f052f0eca72a7b9327d6d7cb534c
+datasets/malware/chaos_ransomware/spread_in_root_drives/sysmon.log                   e12d3fc9ababe97039a5c027170b19e68242aa0cbee867ac8f9d9f22b34b73a9
+datasets/malware/clop/clop_a/windows-sysmon.log                                      b765f9864bd642603dc8a7a4bd3c23e5b036e4ebed9d2f0ac0716f69870996d3
+datasets/malware/clop/clop_b/windows-sysmon.log                                      7ef86290f329f8c82a60462332988100987c1affb027a00ed180ef00c2a59bf2
+datasets/malware/conti/inf1/windows-sysmon.log                                       18e8fa48c78c064b56d99a59d7b7845d67df9afc28fdcfa308acee75960b17c8
+datasets/malware/lockbit_ransomware/sysmon.log                                       7b8265b968d100892fa3ed597c099dd772425e7f16d4ffe66a0cfed12f2d40bd
+datasets/malware/prestige_ransomware/sysmon.log                                      ae83b90c36ecb96cd81c449d225962f36ca4771a3c8a518ebd63fe4988a0dd86
+datasets/malware/revil/inf1/windows-sysmon.log                                       4723cb5456dc4ab9bc279a96b512d7dd0b2d7a9d8556852a80550ed8a162ac74
+datasets/malware/revil/inf2/windows-sysmon.log                                       43369ff5d019c190d38c642517bf83e335d5a66b5f050c20a7cbaf971374803d
+datasets/malware/ryuk/windows-sysmon.log                                             2311ff4c481acdfc6a96ce77fd15abe47e4830b16a183384ce0c9841f8285bfa
+"
+case "${1:-}" in
+    "") ;;
+    --metric) FILES="$FILES$METRIC_FILES" ;;
+    *) echo "usage: $0 [--metric]" >&2; exit 2 ;;
+esac
 
 sha256() {
     if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1

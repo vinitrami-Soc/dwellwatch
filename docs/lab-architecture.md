@@ -11,7 +11,10 @@ DwellWatch runs in two modes that share the same rules and the same Python code.
 
 `datasets/fetch.sh` fetches twenty-one files from one pinned commit of attack_data
 (`52c9d8a53167872293c9d0ca359b5166fb25e243`) and checks each one against a pinned SHA-256.
-Nothing it fetches is committed: `datasets/` is gitignored apart from the script.
+Nothing it fetches is committed: `datasets/` is gitignored apart from the script and
+`runs.yml`. `datasets/fetch.sh --metric` also fetches the eleven ransomware recordings the
+headline metric is measured on (about 520 MB more), listed and labelled in
+[`datasets/runs.yml`](../datasets/runs.yml) and described in [metric-method.md](metric-method.md).
 
 | File (under `datasets/attack_techniques/`) | What it records | Events | Role |
 |---|---|---|---|

@@ -14,15 +14,18 @@
   <img alt="Mapped to MITRE ATT&CK" src="https://img.shields.io/badge/mapped%20to-MITRE%20ATT%26CK-c00">
 </p>
 
-> **Status: in progress.** Phases 0 to 4 are done: the replay engine, 26 Sigma rules across all
-> six stages, tested on real Atomic Red Team, ransomware and attack-sample telemetry and converted
-> for Wazuh, Splunk and Sentinel, and the correlation engine that turns them into incidents. The
-> dwell-time metric, the IntelPulse webhook and the help-desk pages are still to come. See the
-> [roadmap](#roadmap).
+> **Status: in progress.** Phases 0 to 5 are done: the replay engine, 26 Sigma rules and two
+> counters across all six stages, tested on real Atomic Red Team, ransomware and attack-sample
+> telemetry and converted for Wazuh, Splunk and Sentinel, the correlation engine that turns them
+> into incidents, and the metric below. The live lab, the IntelPulse webhook and the help-desk
+> pages are still to come. See the [roadmap](#roadmap).
 
-**Headline metric:** _not measured yet._ Once the chain has been emulated, this line will read
-"First alert fired N minutes before encryption in X of Y emulated runs", with the denominator and
-the measurement method published alongside it.
+**Headline metric:** First alert fired a median of 0.9 minutes before encryption in 6 of 11
+replayed ransomware runs. No correlated incident was raised before encryption in any of them.
+These are recordings of ransomware being run on a lab machine, not of an intrusion with dwell
+time, and 10 of the 11 shaped the rules; the help-desk-led chain this project is built for is
+still to be emulated. What exactly is measured, and what it does not show:
+[docs/metric-method.md](docs/metric-method.md). CI recomputes it on every push.
 
 ## What it is
 
@@ -216,7 +219,7 @@ express, and the converter problems found on the way, are in the
 - [x] **Phase 2:** conversion to Wazuh, SPL and KQL
 - [x] **Phase 3:** rules for stages 1 to 4 and 6
 - [x] **Phase 4:** the correlation engine
-- [ ] **Phase 5:** the dwell-time metric
+- [x] **Phase 5:** the dwell-time metric
 - [ ] **Phase 6:** IntelPulse webhook integration
 - [ ] **Phase 7:** help-desk checklist and small-business readiness page
 
@@ -228,7 +231,7 @@ converted/        generated Wazuh, Splunk and Sentinel versions of every rule
 wazuh/            hand-written Wazuh FIM rules and agent config for stage 6 (not from Sigma)
 src/dwellwatch/   replay, correlation, metric and webhook code
 tests/            offline pytest suite, run in CI
-datasets/         replay data, fetched by script and never committed
+datasets/         fetch.sh (replay data, never committed) and runs.yml (the metric's runs, labelled)
 atomics/          notes on each Atomic Red Team run
 docs/             lab architecture, threat model, detection catalogue, method
 ```

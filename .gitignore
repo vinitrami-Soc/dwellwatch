@@ -25,6 +25,7 @@ env/
 # Replay datasets are fetched, not committed (datasets/fetch.sh)
 datasets/*
 !datasets/fetch.sh
+!datasets/runs.yml
 
 # Editors and OS
 .vscode/

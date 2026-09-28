@@ -31,8 +31,8 @@ from __future__ import annotations
 import argparse
 import sys
 from collections import defaultdict
-from collections.abc import Iterable
-from datetime import UTC, timedelta
+from collections.abc import Callable, Iterable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sigma.exceptions import SigmaError
@@ -40,7 +40,7 @@ from sigma.exceptions import SigmaError
 from .burst import NoteBursts
 from .models import Incident, Severity, Signal, Stage, account_key, host_key
 from .newsource import NewSources
-from .replay import RULES_DIR, Rule, load_events, load_rules, replay
+from .replay import RULES_DIR, Event, Rule, load_events, load_rules, replay
 
 WINDOW = timedelta(hours=24)  # two stages this close are an incident
 CLOSE = timedelta(hours=1)  # two stages this close are critical
@@ -83,6 +83,14 @@ def correlate(signals: Iterable[Signal], window: timedelta = WINDOW) -> list[Inc
         severity, reason = _assess(kind, entity, chain)
         incidents.append(Incident(kind, entity, chain, severity, reason))  # type: ignore[arg-type]
     return sorted(incidents, key=lambda i: (i.first_seen, i.entity_kind, i.entity))
+
+
+def raised_at(incident: Incident) -> datetime:
+    """When correlation could first have raised `incident`: at its first signal of a second stage.
+    Until then its signals were all one stage. (An incident's signals follow each other within the
+    window, so that signal is within it of the one before, which is of the first stage.)"""
+    first = incident.signals[0].stage
+    return next(signal.timestamp for signal in incident.signals if signal.stage is not first)
 
 
 def _order(signal: Signal) -> tuple:
@@ -152,16 +160,19 @@ def _duration(delta: timedelta) -> str:
     return f"{hours}h" if not minutes else f"{hours}h{minutes:02}m"
 
 
-def detect(datasets: Iterable[Path], rules: list[Rule], baseline: Iterable[Path] = ()) -> list[Signal]:
+def detect(datasets: Iterable[Path], rules: list[Rule], baseline: Iterable[Path] = (),
+           watch: Callable[[Iterable[Event]], Iterable[Event]] | None = None) -> list[Signal]:
     """Every signal in `datasets`, read as one timeline: the rules' and both counters', in time order.
-    The `baseline` files only teach the new-source counter what is normal."""
+    The `baseline` files only teach the new-source counter what is normal. `watch`, if given, sees
+    every event of `datasets` on the way through (the metric uses it to find the first ransom note)."""
     bursts, sources = NoteBursts(), NewSources()
     for path in baseline:
         for event in load_events(path):
             sources.learn(event)
     signals = []
     for path in datasets:
-        signals += replay(sources.watch(bursts.watch(load_events(path))), rules)
+        events = load_events(path) if watch is None else watch(load_events(path))
+        signals += replay(sources.watch(bursts.watch(events)), rules)
     return sorted(signals + bursts.signals() + sources.signals(), key=_order)
 
 
