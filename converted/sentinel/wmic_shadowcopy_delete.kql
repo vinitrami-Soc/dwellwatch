@@ -1,0 +1,4 @@
+// Shadow Copies Deleted With wmic
+// Generated from sigma/stage5_backup_destruction/wmic_shadowcopy_delete.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where (TargetProcessName endswith "\\wmic.exe" or TargetProcessFileOriginalName =~ "wmic.exe") and (TargetProcessCommandLine contains "shadowcopy" and TargetProcessCommandLine contains "delete")

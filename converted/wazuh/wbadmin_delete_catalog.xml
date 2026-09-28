@@ -1,0 +1,38 @@
+<!-- Backup Catalogue Deleted With wbadmin
+     Generated from sigma/stage5_backup_destruction/wbadmin_delete_catalog.yml (529b5849-1e91-435b-8448-4804d93ca54e) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="105010" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}wbadmin\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*delete))(?=(?i:.*catalog))</field>
+    <description>DwellWatch stage 5: Backup Catalogue Deleted With wbadmin</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="105011" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:WBADMIN\.EXE$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*delete))(?=(?i:.*catalog))</field>
+    <description>DwellWatch stage 5: Backup Catalogue Deleted With wbadmin</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="105012" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}wbadmin\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*delete))(?=(?i:.*catalog))</field>
+    <description>DwellWatch stage 5: Backup Catalogue Deleted With wbadmin</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+</group>

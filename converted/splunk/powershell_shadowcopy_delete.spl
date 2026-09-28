@@ -1,0 +1,1 @@
+Image IN ("*\\powershell.exe", "*\\pwsh.exe") OR OriginalFileName IN ("PowerShell.EXE", "pwsh.dll") CommandLine="*win32_shadowcopy*" CommandLine IN ("*.Delete(*", "*Remove-WmiObject*", "*Remove-CimInstance*", "*rwmi*", "*rcim*")

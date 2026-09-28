@@ -1,0 +1,38 @@
+<!-- Shadow Copies Deleted With wmic
+     Generated from sigma/stage5_backup_destruction/wmic_shadowcopy_delete.yml (33b943df-d8c6-43cc-b49d-c72a5c2cced2) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="105030" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}wmic\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*shadowcopy))(?=(?i:.*delete))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With wmic</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="105031" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:wmic\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*shadowcopy))(?=(?i:.*delete))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With wmic</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="105032" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}wmic\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*shadowcopy))(?=(?i:.*delete))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With wmic</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+</group>

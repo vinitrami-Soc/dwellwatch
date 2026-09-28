@@ -1,0 +1,1 @@
+Image="*\\wmic.exe" OR OriginalFileName="wmic.exe" CommandLine="*shadowcopy*" CommandLine="*delete*"

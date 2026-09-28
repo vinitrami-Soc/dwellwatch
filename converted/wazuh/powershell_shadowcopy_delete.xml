@@ -1,0 +1,41 @@
+<!-- Shadow Copies Deleted With PowerShell
+     Generated from sigma/stage5_backup_destruction/powershell_shadowcopy_delete.yml (41271189-187d-4862-aaf8-f22ce19667a0) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="105040" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}powershell\.exe$)|(?i:.*\\{1,2}pwsh\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*win32_shadowcopy))(?=(?:(?i:.*\.Delete\()|(?i:.*Remove\-WmiObject)|(?i:.*Remove\-CimInstance)|(?i:.*rwmi)|(?i:.*rcim)))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With PowerShell</description>
+    <mitre>
+      <id>T1490</id>
+      <id>T1059.001</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="105041" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?:(?i:PowerShell\.EXE$)|(?i:pwsh\.dll$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*win32_shadowcopy))(?=(?:(?i:.*\.Delete\()|(?i:.*Remove\-WmiObject)|(?i:.*Remove\-CimInstance)|(?i:.*rwmi)|(?i:.*rcim)))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With PowerShell</description>
+    <mitre>
+      <id>T1490</id>
+      <id>T1059.001</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="105042" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}powershell\.exe$)|(?i:.*\\{1,2}pwsh\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*win32_shadowcopy))(?=(?:(?i:.*\.Delete\()|(?i:.*Remove\-WmiObject)|(?i:.*Remove\-CimInstance)|(?i:.*rwmi)|(?i:.*rcim)))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With PowerShell</description>
+    <mitre>
+      <id>T1490</id>
+      <id>T1059.001</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+</group>

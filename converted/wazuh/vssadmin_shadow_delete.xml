@@ -1,0 +1,38 @@
+<!-- Shadow Copies Deleted With vssadmin
+     Generated from sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml (b4a9f257-7282-4323-a97f-9560d2fdccaa) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="105000" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}vssadmin\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*delete))(?=(?i:.*shadows))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With vssadmin</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="105001" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:VSSADMIN\.EXE$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*delete))(?=(?i:.*shadows))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With vssadmin</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="105002" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}vssadmin\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*delete))(?=(?i:.*shadows))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With vssadmin</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+</group>

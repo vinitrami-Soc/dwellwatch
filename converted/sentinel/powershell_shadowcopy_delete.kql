@@ -1,0 +1,4 @@
+// Shadow Copies Deleted With PowerShell
+// Generated from sigma/stage5_backup_destruction/powershell_shadowcopy_delete.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where ((TargetProcessName endswith "\\powershell.exe" or TargetProcessName endswith "\\pwsh.exe") or (TargetProcessFileOriginalName in~ ("PowerShell.EXE", "pwsh.dll"))) and TargetProcessCommandLine contains "win32_shadowcopy" and (TargetProcessCommandLine contains ".Delete(" or TargetProcessCommandLine contains "Remove-WmiObject" or TargetProcessCommandLine contains "Remove-CimInstance" or TargetProcessCommandLine contains "rwmi" or TargetProcessCommandLine contains "rcim")
