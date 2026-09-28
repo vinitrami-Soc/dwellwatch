@@ -1,0 +1,32 @@
+# Temporary: regenerates converted/ on a branch and commits it, while the development session
+# cannot run commands itself. Removed before the branch reaches main.
+name: Regenerate converted (temporary)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Regenerate
+        run: python -m dwellwatch.convert
+      - name: Show what changed
+        run: git status --short converted/ && git diff --stat -- converted/
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add converted/
+          if git diff --cached --quiet; then echo "converted/ already up to date"; exit 0; fi
+          git commit -m "Regenerate converted/ from the Sigma rules"
+          git push
