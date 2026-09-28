@@ -254,6 +254,17 @@ installed remotely (System 7045), share access (5145), explicit-credential logon
 processes WMI starts on the target (Conti's Cobalt Strike beacon among them), and a local
 pass-the-hash seen only as an NTLM network logon.
 
+**The new-source counter** ([`newsource.py`](../src/dwellwatch/newsource.py)), added in Phase 4,
+has nothing real to fire on yet. Across every recording here, the pinned files and the unseen
+round's 392,824 events, there are 39 remote logons by people's accounts, in 11 files, each a snapshot of minutes to five days with no earlier history to learn
+from, so with its defaults the counter judges none of them. Judged from the first logon with no
+learning at all, where every source is new, it still raises nothing: no source reaches a second
+host within an hour. (Before local accounts were kept apart from domain accounts of the same name,
+it did: the pinned RDP recording's 10.0.1.12 reaching the domain's Administrator on `ar-win-dc`
+and `ar-win-dc-2`'s local Administrator 24 seconds apart.) Its firing is tested on planted
+events; the live lab's lateral-movement run, replayed with a baseline of normal days before it,
+is its first real test.
+
 ### Stage 6 on real data
 
 The pinned files: DiskCryptor's two `dcrypt.exe` runs and `dcinst -setup` fire, its Inno Setup
@@ -430,5 +441,8 @@ Not built yet. The plan, from the project brief:
   both Windows machines, shipped by the Wazuh agent, plus Wazuh file integrity monitoring with
   who-data on the file share and shared documents, where the canary files live
   ([`wazuh/agent_syscheck.xml`](../wazuh/agent_syscheck.xml)).
+- **Baseline:** at least 14 days of ordinary activity recorded before any emulation, so the
+  new-source counter knows which sources each account normally uses
+  (`python -m dwellwatch.correlate --baseline`).
 - **Emulation:** Atomic Red Team only, on snapshotted VMs that nothing else depends on.
 - **Versions:** pinned here once installed. The Wazuh 4.14.x line is the target.

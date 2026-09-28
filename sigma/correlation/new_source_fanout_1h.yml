@@ -1,0 +1,82 @@
+# Stage 4's "from a new source in a short window", in Sigma's correlation syntax, for readers who
+# deploy the rules in a SIEM. src/dwellwatch/newsource.py is the reference.
+#
+# Sigma can say the short window: one account, from one source address, logging on to two or
+# more hosts within an hour. It cannot say "new": that needs a memory of which sources each
+# account used over the last 14 days, which is state no Sigma rule holds. In a SIEM, keep that
+# memory as a lookup (in Splunk, a lookup of account and source pairs refreshed daily from 4624
+# events) and drop the pairs found in it. Without it, these rules also fire on every account's
+# usual workstation reaching two servers in an hour, which is most mornings. Grouping by
+# TargetUserName alone also counts a host's local Administrator together with the domain's.
+title: Network Or Remote Desktop Logon From Another Machine
+id: 06eecc39-8df9-4b1f-8ddf-7d9e80e77c74
+name: dwellwatch_remote_logon
+status: experimental
+description: |
+  A logon over the network (4624 logon type 3) or by remote desktop (type 10) by a person's
+  account, from an address other than the machine's own. Too common to alert on alone; the
+  correlation below counts them.
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.lateral_movement
+  - attack.t1021
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4624
+    LogonType:
+      - 3
+      - 10
+  filter_local:
+    - IpAddress|startswith: '127.'
+    - IpAddress:
+        - '::1'
+        - '0.0.0.0'
+        - '::'
+        - '-'
+        - ''
+  filter_service:
+    - TargetUserName|endswith: '$' # machine accounts
+    - TargetUserName:
+        - 'SYSTEM'
+        - 'LOCAL SERVICE'
+        - 'NETWORK SERVICE'
+        - 'ANONYMOUS LOGON'
+        - '-'
+        - ''
+    - TargetDomainName: 'NT AUTHORITY'
+  condition: selection and not 1 of filter_*
+level: informational
+---
+title: One Account Reaches Several Hosts From One Source Within An Hour
+id: 2f54ff15-481c-4353-b71e-03765b8a44c0
+status: experimental
+description: |
+  One account, logging on from one source address, reaches two or more hosts within an hour:
+  how PsExec, WMI and RDP lateral movement with a stolen account spreads. DwellWatch stage 4.
+  Drop account and source pairs seen in the last 14 days (see the comment at the top of this
+  file) so that only new sources remain.
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.lateral_movement
+  - attack.t1021
+correlation:
+  type: value_count
+  rules:
+    - dwellwatch_remote_logon
+  group-by:
+    - TargetUserName
+    - IpAddress
+  timespan: 1h
+  condition:
+    field: Computer
+    gte: 2
+falsepositives:
+  - Without the memory of known sources, any account whose workstation reaches two servers in an
+    hour, such as a file server and a domain controller at logon.
+  - Administrators working from a new jump host or a new VPN address.
+level: medium

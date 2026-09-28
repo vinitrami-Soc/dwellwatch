@@ -6,7 +6,9 @@ stages of the chain within a day is how a help-desk-led intrusion looks, so that
 
     python -m dwellwatch.correlate path/to/*.log   # replay the files through the rules, then correlate
 
-The command line adds the ransom-note sprays that burst.py counts to the rules' signals.
+Signals come from the rules and from two counters that Sigma cannot express: ransom-note sprays
+(burst.py, stage 6) and accounts reaching several hosts from a new source (newsource.py, stage 4).
+`--baseline` gives the new-source counter normal activity recorded earlier, to learn from.
 
 How it decides, in order:
 
@@ -27,7 +29,6 @@ How it decides, in order:
 from __future__ import annotations
 
 import argparse
-import ipaddress
 import sys
 from collections import defaultdict
 from collections.abc import Iterable
@@ -37,8 +38,9 @@ from pathlib import Path
 from sigma.exceptions import SigmaError
 
 from .burst import NoteBursts
-from .models import Incident, Severity, Signal, Stage
-from .replay import RULES_DIR, load_events, load_rules, replay
+from .models import Incident, Severity, Signal, Stage, account_key, host_key
+from .newsource import NewSources
+from .replay import RULES_DIR, Rule, load_events, load_rules, replay
 
 WINDOW = timedelta(hours=24)  # two stages this close are an incident
 CLOSE = timedelta(hours=1)  # two stages this close are critical
@@ -52,7 +54,6 @@ STAGE_NAMES = {
     Stage.BACKUP_DESTRUCTION: "backup destruction",
     Stage.ENCRYPTION: "encryption",
 }
-SERVICE_ACCOUNTS = frozenset({"system", "local service", "network service", "anonymous logon", "-"})
 
 
 def correlate(signals: Iterable[Signal], window: timedelta = WINDOW) -> list[Incident]:
@@ -89,24 +90,11 @@ def _order(signal: Signal) -> tuple:
 
 
 def _user_key(signal: Signal) -> str | None:
-    if not signal.user:
-        return None
-    user = signal.user.strip().lower()
-    account = user.rsplit("\\", 1)[-1]
-    if account in SERVICE_ACCOUNTS or account.endswith("$") or user.startswith("nt authority\\"):
-        return None
-    return user
+    return account_key(signal.user)
 
 
 def _host_key(signal: Signal) -> str | None:
-    host = signal.host.strip().lower().rstrip(".")
-    if not host:
-        return None
-    try:
-        ipaddress.ip_address(host)
-        return host
-    except ValueError:
-        return host.split(".", 1)[0]
+    return host_key(signal.host)
 
 
 def _chains(signals: list[Signal], window: timedelta) -> Iterable[list[Signal]]:
@@ -164,22 +152,35 @@ def _duration(delta: timedelta) -> str:
     return f"{hours}h" if not minutes else f"{hours}h{minutes:02}m"
 
 
+def detect(datasets: Iterable[Path], rules: list[Rule], baseline: Iterable[Path] = ()) -> list[Signal]:
+    """Every signal in `datasets`, read as one timeline: the rules' and both counters', in time order.
+    The `baseline` files only teach the new-source counter what is normal."""
+    bursts, sources = NoteBursts(), NewSources()
+    for path in baseline:
+        for event in load_events(path):
+            sources.learn(event)
+    signals = []
+    for path in datasets:
+        signals += replay(sources.watch(bursts.watch(load_events(path))), rules)
+    return sorted(signals + bursts.signals() + sources.signals(), key=_order)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m dwellwatch.correlate",
-        description="Replay Windows event files through DwellWatch's rules and note-burst counter, "
-                    "then correlate the signals.",
+        description="Replay Windows event files through DwellWatch's rules and counters, then correlate the "
+                    "signals.",
     )
     parser.add_argument("datasets", nargs="+", type=Path, help="Windows event XML, JSON Lines or JSON files, "
                                                                    "read as one timeline")
     parser.add_argument("--rules", type=Path, default=RULES_DIR, help="folder holding the stageN_* rule folders")
+    parser.add_argument("--baseline", type=Path, action="append", default=[], metavar="FILE",
+                        help="normal activity from before the datasets, which only teaches the new-source "
+                             "counter which sources each account uses; repeat for more files")
     args = parser.parse_args(argv)
 
     try:
-        rules = load_rules(args.rules)
-        bursts = NoteBursts()
-        signals = [s for path in args.datasets for s in replay(bursts.watch(load_events(path)), rules)]
-        signals += bursts.signals()
+        signals = detect(args.datasets, load_rules(args.rules), args.baseline)
     except (OSError, ValueError, SigmaError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

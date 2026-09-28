@@ -228,6 +228,51 @@ movement.
 Each rule has must-fire and must-stay-quiet tests in
 [`tests/test_replay_stage4.py`](../tests/test_replay_stage4.py).
 
+### Counting: a new source that spreads
+
+The brief asks for "Security 4624 logon types 3 and 10 from a new source in a short window".
+Phase 3 shipped only the plain RDP rule above, which sees every type 10 logon and knows nothing
+of sources. The brief's version needs a memory of each account's sources, which no Sigma rule
+holds, so it is a counter, [`newsource.py`](../src/dwellwatch/newsource.py):
+
+> An account logging on over the network (type 3) or by remote desktop (type 10) from a source it
+> has not used in the previous **14 days**, and from there reaching **2 or more hosts within an
+> hour** of that first logon, is a stage 4 signal (T1021, medium), timed at the logon that reaches
+> the second host. Once per account and source.
+
+The two hosts are the "short window" and what "host to host" means: one new source reaching one
+host is everyday (a new laptop, a new VPN address), and a single RDP logon is already the RDP
+rule's. Choices, and what they cost:
+
+- **Learning.** Until the counter has seen 14 days of logons, every source is new, so it judges
+  nothing before then. A recording replayed alone raises nothing; `python -m dwellwatch.correlate
+  --baseline FILE` feeds it normal activity recorded earlier, which teaches but never alerts.
+- **A source is an IP address** (4624's `IpAddress`). A laptop that DHCP gives a new address is a
+  new source; the lab's fixed addresses avoid that, a production network would map addresses to
+  machines first. Logons from the machine itself (loopback, no address) are not remote.
+- **Accounts.** Machine accounts, anonymous logons and service identities are left out, as in
+  correlation. A domain account is compared by name alone, because Windows logs it as both
+  `CORP\jdoe` and `corp.local\jdoe`; a local account, whose domain is the host's own name, stays
+  tied to its host. Without that, the pinned RDP recording's source reaching the domain's
+  Administrator on one host and a server's local Administrator on another looked like a spread.
+
+For SIEMs, [`sigma/correlation/new_source_fanout_1h.yml`](../sigma/correlation/new_source_fanout_1h.yml)
+states the short window in Sigma's correlation syntax: a base rule for remote logons by people's
+accounts (the same exclusions, checked against the counter case by case in the tests) and a
+`value_count` of distinct `Computer` of at least 2, per `TargetUserName` and `IpAddress`, over an
+hour. It cannot say "new"; the SIEM needs a lookup of the account and source pairs seen in the
+last 14 days. pySigma converts it for Splunk:
+
+```
+EventID=4624 LogonType IN (3, 10) NOT (IpAddress="127.*" OR IpAddress IN ("::1", "0.0.0.0", "::", "-", "") OR TargetUserName="*$" OR TargetUserName IN ("SYSTEM", "LOCAL SERVICE", "NETWORK SERVICE", "ANONYMOUS LOGON", "-", "") OR TargetDomainName="NT AUTHORITY")
+| bin _time span=1h
+| stats dc(Computer) as value_count by _time TargetUserName IpAddress
+| search value_count >= 2
+```
+
+Tests are in [`tests/test_newsource.py`](../tests/test_newsource.py). On real data it has not fired:
+see [lab-architecture.md](lab-architecture.md#stage-4-on-real-data).
+
 ## Stage 5: backup destruction
 
 All six rules: ATT&CK **T1490** (Inhibit System Recovery), Sigma level `high`, log source

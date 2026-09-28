@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
@@ -27,6 +28,35 @@ class Severity(IntEnum):
     MEDIUM = 2
     HIGH = 3
     CRITICAL = 4
+
+
+# Identities every Windows host has. They never tie signals or logons to a person: linking by them
+# would join unrelated activity on every machine.
+SERVICE_ACCOUNTS = frozenset({"system", "local service", "network service", "anonymous logon", "-"})
+
+
+def account_key(user: str | None) -> str | None:
+    """`user` in lower case, or None for service identities (SYSTEM, NT AUTHORITY\\*, anonymous
+    logons) and machine accounts ending in $."""
+    if not user:
+        return None
+    user = user.strip().lower()
+    account = user.rsplit("\\", 1)[-1]
+    if account in SERVICE_ACCOUNTS or account.endswith("$") or user.startswith("nt authority\\"):
+        return None
+    return user
+
+
+def host_key(host: str) -> str | None:
+    """A host's short name in lower case (WIN-DC.corp.local is win-dc); IP addresses stay whole."""
+    host = host.strip().lower().rstrip(".")
+    if not host:
+        return None
+    try:
+        ipaddress.ip_address(host)
+        return host
+    except ValueError:
+        return host.split(".", 1)[0]
 
 
 def _require_aware(timestamp: datetime) -> None:

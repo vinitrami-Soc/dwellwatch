@@ -52,7 +52,7 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 1 | Help-desk reset abuse | Impersonates an employee, gets a password or MFA reset | Windows Security 4724 (password reset); group adds 4728, 4732, 4756. MFA resets are in the identity provider's logs, not Windows' | T1078, T1098, T1556 |
 | 2 | Remote tooling and discovery | Installs remote access, runs discovery commands | Sysmon 1 or Security 4688 (process creation) | T1219, T1087, T1018, T1482 |
 | 3 | Credential theft | Copies the AD database or reads LSASS | Sysmon 10 (access to lsass), 11 (dump files, NTDS.dit copies); process creation for dump and copy commands; Security 4662 with replication rights | T1003.001, T1003.002, T1003.003, T1003.006 |
-| 4 | Lateral movement | Moves host to host with the stolen account | Security 4624 logon types 9 and 10; process creation for PsExec, Impacket and remote WMI | T1021.001, T1021.002, T1047, T1550.002 |
+| 4 | Lateral movement | Moves host to host with the stolen account | Security 4624 logon types 3, 9 and 10, including one account reaching two hosts from a new source; process creation for PsExec, Impacket and remote WMI | T1021, T1021.001, T1021.002, T1047, T1550.002 |
 | 5 | Backup destruction | Deletes shadow copies and backups before encrypting | Sysmon 1: vssadmin, wbadmin, bcdedit, diskshadow, wmic, reagentc | T1490 |
 | 6 | Encryption (backstop) | Mass file changes, ransom notes | Sysmon 11 (notes, canary files, one process spraying the same note into 20 folders); disk and file encryption commands; in the live lab, Wazuh FIM bursts and canaries | T1486 |
 
@@ -80,6 +80,7 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 6 | [DwellWatch Canary File Touched](sigma/stage6_encryption/canary_file_touched.yml) | any write to a file carrying the canary token |
 | 6 | [Disk Encryption Turned Against The Owner](sigma/stage6_encryption/disk_encryption_abuse.yml) | BitLocker protectors deleted or password-locked, DiskCryptor |
 | 6 | [Files Encrypted With A Command-Line Tool](sigma/stage6_encryption/files_encrypted_with_cli_tool.yml) | gpg, openssl or 7-Zip encrypting with a passphrase on the command line |
+| 4 | [Account Reaches Several Hosts From A New Source](src/dwellwatch/newsource.py) (a count, not a Sigma rule) | a network or RDP logon from a source the account has not used in 14 days, reaching 2 hosts within an hour |
 | 6 | [Same File Name Written Into Many Folders](src/dwellwatch/burst.py) (a count, not a Sigma rule) | one process writing one file name into 20 folders within 10 minutes: a ransom-note spray, whatever the note is called |
 | 6 | [Wazuh FIM burst and canary](wazuh/dwellwatch_fim_rules.xml) (Wazuh only) | 50 file changes by one process in watched folders within a minute; a canary document changed, renamed or deleted |
 | 5 | [Shadow Copies Deleted With vssadmin](sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml) | `vssadmin delete shadows` |
@@ -112,6 +113,10 @@ Stage 4 is deliberately narrow, and its unseen-data result says so plainly. Its 
 PsExec, Impacket's wmiexec and dcomexec, mimikatz's pass-the-hash and RDP tunnelling in
 EVTX-ATTACK-SAMPLES, but not WinRM, PowerShell remoting, SharpRDP, remote services or tasks,
 DCOM or target-side WMI. Correlation is what connects such movement to the stages around it.
+The brief's "logons from a new source in a short window" needs a memory of each account's usual
+sources, which Sigma cannot hold, so it is a counter, [`newsource.py`](src/dwellwatch/newsource.py):
+a source an account has not used in 14 days reaching two hosts within an hour. The recordings are
+too short to give it that memory, so it has not fired on real data yet; the live lab will.
 
 Stage 6 is the backstop. Its rules fire on DiskCryptor and BitLocker abuse in attack_data and stay
 quiet on ordinary READMEs. Honestly scored, the ransom-note rule caught one ransomware family of
@@ -168,7 +173,8 @@ attack: Conti's Cobalt Strike session, an Atomic Red Team run, a ransomware run,
 incident leans on one stage 3 false positive. Adding the note-spray count turns four more
 ransomware runs (Chaos, LockBit, REvil, Ryuk) into incidents and gives Clop's a genuine second
 stage; that count's threshold was set on these same recordings, so those four are not an unseen
-result. The command line counts sprays alongside the rules. Details are in
+result. The command line runs both counters (note sprays, new sources) alongside the rules, and
+`--baseline FILE` gives the new-source counter earlier, normal activity to learn from. Details are in
 [docs/lab-architecture.md](docs/lab-architecture.md#correlation-on-real-data). For SIEMs, the
 same rule is written in Sigma's correlation syntax in
 [`sigma/correlation/two_stage_24h.yml`](sigma/correlation/two_stage_24h.yml).
