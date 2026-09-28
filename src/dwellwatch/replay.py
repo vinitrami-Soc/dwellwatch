@@ -55,6 +55,8 @@ SECURITY = "Security"
 LogSource = tuple[str | None, str | None, str | None]
 LOGSOURCES: dict[LogSource, frozenset[tuple[str, int | None]]] = {
     ("windows", "process_creation", None): frozenset({(SYSMON, 1), (SECURITY, 4688)}),
+    ("windows", "process_access", None): frozenset({(SYSMON, 10)}),
+    ("windows", "file_event", None): frozenset({(SYSMON, 11)}),
     ("windows", None, "security"): frozenset({(SECURITY, None)}),
 }
 
@@ -293,7 +295,9 @@ TARGET_ACCOUNT_EVENTS = {"4624", "4625", "4723", "4724", "4738"}
 
 
 def normalise(event: Event) -> Event:
-    """Give every Security event a User, and 4688 the Sysmon names process_creation rules use."""
+    """Give Security events, and Sysmon 10 when it names one, a User; give 4688 the Sysmon names."""
+    if event.get("Channel") == SYSMON and "User" not in event and event.get("SourceUser"):
+        return {**event, "User": event["SourceUser"]}  # Sysmon 10: the account of the process reaching in
     if event.get("Channel") != SECURITY:
         return event
     event = dict(event)

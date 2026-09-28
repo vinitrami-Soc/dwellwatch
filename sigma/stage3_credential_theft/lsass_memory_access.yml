@@ -1,0 +1,49 @@
+title: LSASS Memory Opened For Credential Theft
+id: 9760ca3f-fa6f-48c3-999d-1d433b26d851
+status: experimental
+description: |
+  Detects a process opening LSASS, which holds the credentials of everyone logged on, in a way
+  that reads its memory: either through the Windows dump functions (dbgcore.dll, dbghelp.dll, or
+  comsvcs.dll's MiniDump, which procdump, Task Manager, Dumpert and rundll32 all use), or with
+  full or memory-read access from anything other than the system processes that legitimately hold
+  it (csrss.exe, wininit.exe). Mimikatz reading LSASS directly is the second case. Needs Sysmon
+  event 10 for lsass.exe. DwellWatch stage 3 (credential theft).
+references:
+  - https://attack.mitre.org/techniques/T1003/001/
+  - https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.credential-access
+  - attack.t1003.001
+logsource:
+  category: process_access
+  product: windows
+detection:
+  selection_target:
+    TargetImage|endswith: '\lsass.exe'
+  selection_dump_functions:
+    CallTrace|contains:
+      - 'dbgcore.dll'
+      - 'dbghelp.dll'
+      - 'comsvcs.dll'
+  selection_read_access:
+    GrantedAccess:
+      - '0x1fffff' # all access
+      - '0x1f3fff'
+      - '0x1f1fff'
+      - '0x1f0fff'
+      - '0x1010' # query limited information and read memory, as mimikatz asks for
+      - '0x1038'
+      - '0x1438'
+      - '0x143a'
+  filter_system:
+    SourceImage:
+      - 'C:\Windows\System32\csrss.exe'
+      - 'C:\Windows\System32\wininit.exe'
+  condition: selection_target and (selection_dump_functions or (selection_read_access and not filter_system))
+falsepositives:
+  - Windows Error Reporting (WerFault.exe) writing a dump after LSASS crashes, which also restarts
+    the machine.
+  - Security products that scan LSASS with full access. Add their install path to the filter.
+level: high

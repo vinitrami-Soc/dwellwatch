@@ -1,0 +1,93 @@
+<!-- AD Database Copied
+     Generated from sigma/stage3_credential_theft/ntds_database_copied.yml (6cf54d41-7f1f-4f40-a3b9-8f948d71c386) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="103020" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}ntdsutil\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*ifm)</field>
+    <description>DwellWatch stage 3: AD Database Copied</description>
+    <mitre>
+      <id>T1003.003</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103021" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:ntdsutil\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*ifm)</field>
+    <description>DwellWatch stage 3: AD Database Copied</description>
+    <mitre>
+      <id>T1003.003</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103022" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*HarddiskVolumeShadowCopy))(?=(?i:.*\\{1,2}ntds\.dit))</field>
+    <description>DwellWatch stage 3: AD Database Copied</description>
+    <mitre>
+      <id>T1003.003</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103023" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}esentutl\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*/vss))(?=(?i:.*\\{1,2}ntds\.dit))</field>
+    <description>DwellWatch stage 3: AD Database Copied</description>
+    <mitre>
+      <id>T1003.003</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103024" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:esentutl\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*/vss))(?=(?i:.*\\{1,2}ntds\.dit))</field>
+    <description>DwellWatch stage 3: AD Database Copied</description>
+    <mitre>
+      <id>T1003.003</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="103025" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}ntdsutil\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*ifm)</field>
+    <description>DwellWatch stage 3: AD Database Copied</description>
+    <mitre>
+      <id>T1003.003</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="103026" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*HarddiskVolumeShadowCopy))(?=(?i:.*\\{1,2}ntds\.dit))</field>
+    <description>DwellWatch stage 3: AD Database Copied</description>
+    <mitre>
+      <id>T1003.003</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="103027" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}esentutl\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*/vss))(?=(?i:.*\\{1,2}ntds\.dit))</field>
+    <description>DwellWatch stage 3: AD Database Copied</description>
+    <mitre>
+      <id>T1003.003</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+</group>

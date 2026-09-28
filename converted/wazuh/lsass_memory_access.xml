@@ -1,0 +1,27 @@
+<!-- LSASS Memory Opened For Credential Theft
+     Generated from sigma/stage3_credential_theft/lsass_memory_access.yml (9760ca3f-fa6f-48c3-999d-1d433b26d851) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 10 -->
+  <rule id="103000" level="13">
+    <if_group>sysmon_event_10</if_group>
+    <field name="win.eventdata.targetImage" type="pcre2">(?s)^(?i:.*\\{1,2}lsass\.exe$)</field>
+    <field name="win.eventdata.callTrace" type="pcre2">(?s)^(?:(?i:.*dbgcore\.dll)|(?i:.*dbghelp\.dll)|(?i:.*comsvcs\.dll))</field>
+    <description>DwellWatch stage 3: LSASS Memory Opened For Credential Theft</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 10 -->
+  <rule id="103001" level="13">
+    <if_group>sysmon_event_10</if_group>
+    <field name="win.eventdata.targetImage" type="pcre2">(?s)^(?i:.*\\{1,2}lsass\.exe$)</field>
+    <field name="win.eventdata.grantedAccess" type="pcre2">(?s)^(?:(?i:0x1fffff$)|(?i:0x1f3fff$)|(?i:0x1f1fff$)|(?i:0x1f0fff$)|(?i:0x1010$)|(?i:0x1038$)|(?i:0x1438$)|(?i:0x143a$))</field>
+    <field name="win.eventdata.sourceImage" type="pcre2">(?s)^(?!(?:(?i:C:\\{1,2}Windows\\{1,2}System32\\{1,2}csrss\.exe$)|(?i:C:\\{1,2}Windows\\{1,2}System32\\{1,2}wininit\.exe$)))</field>
+    <description>DwellWatch stage 3: LSASS Memory Opened For Credential Theft</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+</group>

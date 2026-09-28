@@ -1,0 +1,101 @@
+<!-- Credential Hives Saved Or Copied
+     Generated from sigma/stage3_credential_theft/registry_hives_copied.yml (034fa389-f3cb-404d-8db3-8db154efd2a8) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="103050" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}reg\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?i:.*\ save\ )|(?i:.*\ export\ )))(?=(?:(?i:.*hklm\\{1,2}sam)|(?i:.*hklm\\{1,2}system)|(?i:.*hklm\\{1,2}security)|(?i:.*hkey_local_machine\\{1,2}sam)|(?i:.*hkey_local_machine\\{1,2}system)|(?i:.*hkey_local_machine\\{1,2}security)))</field>
+    <description>DwellWatch stage 3: Credential Hives Saved Or Copied</description>
+    <mitre>
+      <id>T1003.002</id>
+      <id>T1003.004</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103051" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:reg\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?i:.*\ save\ )|(?i:.*\ export\ )))(?=(?:(?i:.*hklm\\{1,2}sam)|(?i:.*hklm\\{1,2}system)|(?i:.*hklm\\{1,2}security)|(?i:.*hkey_local_machine\\{1,2}sam)|(?i:.*hkey_local_machine\\{1,2}system)|(?i:.*hkey_local_machine\\{1,2}security)))</field>
+    <description>DwellWatch stage 3: Credential Hives Saved Or Copied</description>
+    <mitre>
+      <id>T1003.002</id>
+      <id>T1003.004</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103052" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*HarddiskVolumeShadowCopy))(?=(?:(?i:.*\\{1,2}config\\{1,2}SAM)|(?i:.*\\{1,2}config\\{1,2}SYSTEM)|(?i:.*\\{1,2}config\\{1,2}SECURITY)))</field>
+    <description>DwellWatch stage 3: Credential Hives Saved Or Copied</description>
+    <mitre>
+      <id>T1003.002</id>
+      <id>T1003.004</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103053" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}esentutl\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*/vss))(?=(?:(?i:.*\\{1,2}config\\{1,2}SAM)|(?i:.*\\{1,2}config\\{1,2}SYSTEM)|(?i:.*\\{1,2}config\\{1,2}SECURITY)))</field>
+    <description>DwellWatch stage 3: Credential Hives Saved Or Copied</description>
+    <mitre>
+      <id>T1003.002</id>
+      <id>T1003.004</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103054" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:esentutl\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*/vss))(?=(?:(?i:.*\\{1,2}config\\{1,2}SAM)|(?i:.*\\{1,2}config\\{1,2}SYSTEM)|(?i:.*\\{1,2}config\\{1,2}SECURITY)))</field>
+    <description>DwellWatch stage 3: Credential Hives Saved Or Copied</description>
+    <mitre>
+      <id>T1003.002</id>
+      <id>T1003.004</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="103055" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}reg\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?i:.*\ save\ )|(?i:.*\ export\ )))(?=(?:(?i:.*hklm\\{1,2}sam)|(?i:.*hklm\\{1,2}system)|(?i:.*hklm\\{1,2}security)|(?i:.*hkey_local_machine\\{1,2}sam)|(?i:.*hkey_local_machine\\{1,2}system)|(?i:.*hkey_local_machine\\{1,2}security)))</field>
+    <description>DwellWatch stage 3: Credential Hives Saved Or Copied</description>
+    <mitre>
+      <id>T1003.002</id>
+      <id>T1003.004</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="103056" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*HarddiskVolumeShadowCopy))(?=(?:(?i:.*\\{1,2}config\\{1,2}SAM)|(?i:.*\\{1,2}config\\{1,2}SYSTEM)|(?i:.*\\{1,2}config\\{1,2}SECURITY)))</field>
+    <description>DwellWatch stage 3: Credential Hives Saved Or Copied</description>
+    <mitre>
+      <id>T1003.002</id>
+      <id>T1003.004</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="103057" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}esentutl\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*/vss))(?=(?:(?i:.*\\{1,2}config\\{1,2}SAM)|(?i:.*\\{1,2}config\\{1,2}SYSTEM)|(?i:.*\\{1,2}config\\{1,2}SECURITY)))</field>
+    <description>DwellWatch stage 3: Credential Hives Saved Or Copied</description>
+    <mitre>
+      <id>T1003.002</id>
+      <id>T1003.004</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+</group>

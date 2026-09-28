@@ -1,0 +1,4 @@
+// LSASS Dumped From The Command Line
+// Generated from sigma/stage3_credential_theft/lsass_dump_command.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where (((TargetProcessName endswith "\\procdump.exe" or TargetProcessName endswith "\\procdump64.exe" or TargetProcessName endswith "\\PPLdump.exe") or TargetProcessFileOriginalName =~ "procdump") and TargetProcessCommandLine contains "lsass") or ((TargetProcessName endswith "\\rundll32.exe" or TargetProcessFileOriginalName =~ "RUNDLL32.EXE") and TargetProcessCommandLine contains "comsvcs" and (TargetProcessCommandLine contains "minidump" or TargetProcessCommandLine contains "#24")) or (TargetProcessCommandLine contains "sekurlsa::" or TargetProcessCommandLine contains "lsadump::" or TargetProcessCommandLine contains "/fullmemdmp")

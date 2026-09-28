@@ -1,0 +1,54 @@
+title: LSASS Dumped From The Command Line
+id: e9e873d7-6404-43cb-9330-1d5a84db019c
+status: experimental
+description: |
+  Detects the command lines that dump LSASS to a file or read credentials from it: procdump
+  (renamed copies too, by original file name) or PPLdump pointed at lsass, rundll32 calling
+  comsvcs.dll's MiniDump export by name or by its ordinal (#24), rdrleakdiag's full memory dump,
+  and mimikatz's sekurlsa and lsadump modules. Works from process creation alone, so it covers
+  hosts that do not collect Sysmon event 10. DwellWatch stage 3 (credential theft).
+references:
+  - https://attack.mitre.org/techniques/T1003/001/
+  - https://attack.mitre.org/software/S0002/
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.credential-access
+  - attack.t1003.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_procdump_binary:
+    - Image|endswith:
+        - '\procdump.exe'
+        - '\procdump64.exe'
+        - '\PPLdump.exe' # dumps LSASS even when it runs as a protected process
+    - OriginalFileName: 'procdump'
+  selection_procdump_target:
+    CommandLine|contains: 'lsass'
+  selection_comsvcs_binary:
+    - Image|endswith: '\rundll32.exe'
+    - OriginalFileName: 'RUNDLL32.EXE'
+  selection_comsvcs_dll:
+    CommandLine|contains: 'comsvcs'
+  selection_comsvcs_export:
+    CommandLine|contains:
+      - 'minidump'
+      - '#24'
+  selection_keywords:
+    CommandLine|contains:
+      - 'sekurlsa::' # mimikatz
+      - 'lsadump::' # mimikatz
+      - '/fullmemdmp' # rdrleakdiag, a Windows diagnostic tool that dumps any process
+  condition: >-
+    (selection_procdump_binary and selection_procdump_target)
+    or (selection_comsvcs_binary and selection_comsvcs_dll and selection_comsvcs_export)
+    or selection_keywords
+falsepositives:
+  - Support staff capturing an LSASS dump for Microsoft support, which should be rare and
+    arranged in advance.
+  - The keywords raise an alert on each process whose command line carries them, so a shell that
+    launched mimikatz and mimikatz itself are two alerts. rdrleakdiag's /fullmemdmp matches
+    whichever process it dumps, not only LSASS.
+level: high

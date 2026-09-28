@@ -97,17 +97,27 @@ def _splunk(text: str, path: Path) -> str:
 # categories (process, file, registry, network, web) to ASIM tables, and has none for this service.
 SENTINEL_SECURITY_TABLE = "SecurityEvent"
 
-# pySigma-backend-kusto 1.0.1 maps OriginalFileName to two ASIM fields, one of which
-# (TargetProcessFilename) is not in its own imProcessCreate schema, so every rule using it fails.
-# Map it to the correct field first; the ASIM pipeline then leaves it alone.
+# Two field mappings in pySigma-backend-kusto 1.0.1's ASIM pipeline are wrong, so DwellWatch maps
+# these fields first and the ASIM pipeline then leaves them alone:
+# - OriginalFileName goes to two fields, one of which (TargetProcessFilename) is not in its own
+#   imProcessCreate schema, so every rule using it fails to convert.
+# - Sysmon's TargetFilename, a full path, goes to TargetFileName, which in imFileEvent is the bare
+#   file name; a condition on the folder would never match.
 _ASIM_FIXES = ProcessingPipeline(
     name="DwellWatch fixes to the Sentinel ASIM pipeline",
     priority=5,
-    items=[ProcessingItem(
-        identifier="dwellwatch_asim_original_file_name",
-        transformation=FieldMappingTransformation({"OriginalFileName": "TargetProcessFileOriginalName"}),
-        rule_conditions=[LogsourceCondition(category="process_creation", product="windows")],
-    )],
+    items=[
+        ProcessingItem(
+            identifier="dwellwatch_asim_original_file_name",
+            transformation=FieldMappingTransformation({"OriginalFileName": "TargetProcessFileOriginalName"}),
+            rule_conditions=[LogsourceCondition(category="process_creation", product="windows")],
+        ),
+        ProcessingItem(
+            identifier="dwellwatch_asim_target_file_path",
+            transformation=FieldMappingTransformation({"TargetFilename": "TargetFilePath"}),
+            rule_conditions=[LogsourceCondition(category="file_event", product="windows")],
+        ),
+    ],
 )
 
 
@@ -174,12 +184,17 @@ SECURITY_4688 = WazuhSource(
      "CommandLine": "win.eventdata.commandLine"}.get,
 )
 SECURITY = WazuhSource("Security audit success", ("<if_sid>60103</if_sid>",), _security)
+# Sysmon events 10 and 11 are tagged by rules 61612 and 61613, as event 1 is by 61603.
+SYSMON_10 = WazuhSource("Sysmon event 10", ("<if_group>sysmon_event_10</if_group>",), _eventdata)
+SYSMON_11 = WazuhSource("Sysmon event 11", ("<if_group>sysmon_event_11</if_group>",), _eventdata)
 WAZUH_SOURCES = {
     ("windows", "process_creation", None): (SYSMON_1, SECURITY_4688),
+    ("windows", "process_access", None): (SYSMON_10,),
+    ("windows", "file_event", None): (SYSMON_11,),
     ("windows", None, "security"): (SECURITY,),
 }
 
-Literal = tuple[str, tuple[Any, ...]]  # a field and the values it may take (ORed)
+Literal = tuple[str, tuple[Any, ...], bool]  # a field, the values it may take (ORed), and whether it must not
 REGEX_FLAGS = {SigmaRegularExpressionFlag.IGNORECASE: "i", SigmaRegularExpressionFlag.MULTILINE: "m",
                SigmaRegularExpressionFlag.DOTALL: "s"}
 
@@ -233,55 +248,68 @@ def _wazuh_ids() -> dict[str, int]:
     return {str(key): int(value) for key, value in yaml.safe_load(WAZUH_IDS.read_text(encoding="utf-8")).items()}
 
 
-def _dnf(node: Any, path: Path) -> list[list[Literal]]:
+def _dnf(node: Any, path: Path, negated: bool = False) -> list[list[Literal]]:
     """The condition as alternatives (OR) of conditions that must all hold (AND).
 
-    ORed values of one field stay a single literal, so `Image|endswith: [a, b]` is one pattern, as
-    are alternatives that test the same field (TargetSid by suffix or by whole SID).
+    A `not` is pushed down to the fields, so each literal says a field must, or must not, take one
+    of its values. ORed values of one field stay a single literal, so `Image|endswith: [a, b]` is
+    one pattern, as are alternatives that test the same field (TargetSid by suffix or whole SID).
     """
     if isinstance(node, ConditionFieldEqualsValueExpression):
-        return [[(node.field, (node.value,))]]
-    if isinstance(node, ConditionAND):
-        branches: list[list[Literal]] = [[]]
-        for arg in node.args:
-            branches = [left + right for left in branches for right in _dnf(arg, path)]
-        return branches
-    if isinstance(node, ConditionOR):
-        alternatives: list[list[Literal]] = []
-        by_field: dict[str, list[Literal]] = {}  # field -> the alternative that tests only it
-        for arg in node.args:
-            for branch in _dnf(arg, path):
-                if len(branch) == 1:
-                    field, values = branch[0]
-                    if field in by_field:
-                        by_field[field][0] = (field, by_field[field][0][1] + values)
-                        continue
-                    branch = by_field[field] = [branch[0]]
-                alternatives.append(branch)
-        return alternatives
+        return [[(node.field, (node.value,), negated)]]
     if isinstance(node, ConditionNOT):
-        raise UnsupportedForTarget(path, "wazuh", "negated conditions are not converted yet")
+        return _dnf(node.args[0], path, not negated)
+    if isinstance(node, (ConditionAND, ConditionOR)):
+        parts = [_dnf(arg, path, negated) for arg in node.args]
+        if isinstance(node, ConditionAND) != negated:  # not (a or b) is (not a) and (not b)
+            branches: list[list[Literal]] = [[]]
+            for part in parts:
+                branches = [left + right for left in branches for right in part]
+            return branches
+        alternatives: list[list[Literal]] = []
+        by_field: dict[str, list[Literal]] = {}  # field -> the alternative that only requires it
+        for branch in (branch for part in parts for branch in part):
+            if len(branch) == 1 and not branch[0][2]:
+                field, values, _ = branch[0]
+                if field in by_field:
+                    by_field[field][0] = (field, by_field[field][0][1] + values, False)
+                    continue
+                branch = by_field[field] = [branch[0]]
+            alternatives.append(branch)
+        return alternatives
     if isinstance(node, ConditionValueExpression):
         raise UnsupportedForTarget(path, "wazuh", "keyword searches have no field to match")
     raise UnsupportedForTarget(path, "wazuh", f"{type(node).__name__} conditions are not supported")
 
 
 def _wazuh_fields(branch: list[Literal], source: WazuhSource, path: Path) -> list[tuple[str, str]] | None:
-    """One PCRE2 pattern per Wazuh field for this branch, or None if the source lacks a field."""
-    by_field: dict[str, list[list[str]]] = {}
-    for sigma_field, values in branch:
+    """One PCRE2 pattern per Wazuh field for this branch, or None if the source lacks a field.
+
+    A field the source never has cannot equal anything, so a condition that it must not is
+    dropped as always true, as Sigma reads it.
+    """
+    by_field: dict[str, tuple[list[list[str]], list[str]]] = {}
+    for sigma_field, values, negated in branch:
         wazuh_field = source.field(sigma_field)
         if wazuh_field is None:
+            if negated:
+                continue
             return None
-        by_field.setdefault(wazuh_field, []).append([_wazuh_value(value, path) for value in values])
-    patterns = []
-    for wazuh_field, literals in by_field.items():
-        if len(literals) == 1:
-            body = _alternation(literals[0])
-        else:  # several conditions on one field: all must hold, so one lookahead each
-            body = "".join(f"(?={_alternation(alternatives)})" for alternatives in literals)
-        patterns.append((wazuh_field, f"(?s)^{body}"))
-    return patterns
+        must, must_not = by_field.setdefault(wazuh_field, ([], []))
+        patterns = [_wazuh_value(value, path) for value in values]
+        if negated:
+            must_not.extend(patterns)
+        else:
+            must.append(patterns)
+    fields = []
+    for wazuh_field, (must, must_not) in by_field.items():
+        if len(must) == 1 and not must_not:
+            body = _alternation(must[0])
+        else:  # several conditions on one field: one lookahead each, negative for "must not"
+            body = "".join(f"(?={_alternation(alternatives)})" for alternatives in must)
+            body += f"(?!{_alternation(must_not)})" if must_not else ""
+        fields.append((wazuh_field, f"(?s)^{body}"))
+    return fields
 
 
 def _alternation(alternatives: list[str]) -> str:

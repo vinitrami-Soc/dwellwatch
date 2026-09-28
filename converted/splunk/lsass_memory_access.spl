@@ -1,0 +1,1 @@
+TargetImage="*\\lsass.exe" CallTrace IN ("*dbgcore.dll*", "*dbghelp.dll*", "*comsvcs.dll*") OR (GrantedAccess IN ("0x1fffff", "0x1f3fff", "0x1f1fff", "0x1f0fff", "0x1010", "0x1038", "0x1438", "0x143a") NOT (SourceImage IN ("C:\\Windows\\System32\\csrss.exe", "C:\\Windows\\System32\\wininit.exe")))

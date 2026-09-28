@@ -14,6 +14,14 @@
 f14feb9c-3635-43bb-b5bb-4259afc30a0b: 102020 # ad_recon_tool
 9fcba4cc-17c7-424e-966c-f9a53916d08e: 102030 # net_domain_query
 
+# stage 3: credential theft
+9760ca3f-fa6f-48c3-999d-1d433b26d851: 103000 # lsass_memory_access
+e9e873d7-6404-43cb-9330-1d5a84db019c: 103010 # lsass_dump_command
+6cf54d41-7f1f-4f40-a3b9-8f948d71c386: 103020 # ntds_database_copied
+17e5a4df-a794-476d-9062-2660e845ba2e: 103030 # dcsync_by_non_dc_account
+d99bbf80-ba98-44e0-ba68-19692fbae605: 103040 # credential_dump_file_written
+034fa389-f3cb-404d-8db3-8db154efd2a8: 103050 # registry_hives_copied
+
 # stage 5: backup destruction
 b4a9f257-7282-4323-a97f-9560d2fdccaa: 105000 # vssadmin_shadow_delete
 529b5849-1e91-435b-8448-4804d93ca54e: 105010 # wbadmin_delete_catalog

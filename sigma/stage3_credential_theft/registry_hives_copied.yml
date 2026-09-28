@@ -1,0 +1,57 @@
+title: Credential Hives Saved Or Copied
+id: 034fa389-f3cb-404d-8db3-8db154efd2a8
+status: experimental
+description: |
+  Detects the SAM, SYSTEM or SECURITY registry hives being saved or copied: reg.exe saving them,
+  the hive files read out of a shadow copy by path (whatever tool copies them), or esentutl
+  copying them through its /vss switch. SAM holds the local accounts' hashes, SECURITY the cached
+  domain logons and service secrets, and SYSTEM the key that decrypts both, and the AD database.
+  DwellWatch stage 3 (credential theft).
+references:
+  - https://attack.mitre.org/techniques/T1003/002/
+  - https://attack.mitre.org/techniques/T1003/004/
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.credential-access
+  - attack.t1003.002
+  - attack.t1003.004
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_reg_binary:
+    - Image|endswith: '\reg.exe'
+    - OriginalFileName: 'reg.exe'
+  selection_reg_save:
+    CommandLine|contains:
+      - ' save '
+      - ' export '
+  selection_reg_hive:
+    CommandLine|contains:
+      - 'hklm\sam'
+      - 'hklm\system'
+      - 'hklm\security'
+      - 'hkey_local_machine\sam'
+      - 'hkey_local_machine\system'
+      - 'hkey_local_machine\security'
+  selection_shadow_source:
+    CommandLine|contains: 'HarddiskVolumeShadowCopy'
+  selection_hive_file:
+    CommandLine|contains:
+      - '\config\SAM'
+      - '\config\SYSTEM'
+      - '\config\SECURITY'
+  selection_esentutl_binary:
+    - Image|endswith: '\esentutl.exe'
+    - OriginalFileName: 'esentutl.exe'
+  selection_esentutl_vss:
+    CommandLine|contains: '/vss'
+  condition: >-
+    (selection_reg_binary and selection_reg_save and selection_reg_hive)
+    or (selection_shadow_source and selection_hive_file)
+    or (selection_esentutl_binary and selection_esentutl_vss and selection_hive_file)
+falsepositives:
+  - Backup scripts that save the hives with reg.exe. `hklm\system` also matches saves of its
+    subkeys, such as `hklm\system\currentcontrolset\services\...`.
+level: high

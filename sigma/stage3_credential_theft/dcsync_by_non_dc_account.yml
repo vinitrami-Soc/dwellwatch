@@ -1,0 +1,36 @@
+title: Directory Replication Requested By A User Account
+id: 17e5a4df-a794-476d-9062-2660e845ba2e
+status: experimental
+description: |
+  Detects DCSync: an account asking a domain controller to replicate directory data, including
+  password hashes, the way another domain controller would (Security 4662 with the
+  DS-Replication-Get-Changes rights). Domain controllers replicate as their machine accounts,
+  whose names end in $, so requests from any other account are what mimikatz's lsadump::dcsync
+  and Impacket's secretsdump look like when run as a user. Needs "Audit Directory Service Access"
+  on the domain controllers. DwellWatch stage 3 (credential theft).
+references:
+  - https://attack.mitre.org/techniques/T1003/006/
+  - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4662
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.credential-access
+  - attack.t1003.006
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4662
+    AccessMask: '0x100' # control access
+    Properties|contains:
+      - '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2' # DS-Replication-Get-Changes
+      - '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2' # DS-Replication-Get-Changes-All
+      - '89e95b76-444d-4c62-991a-0facbeda640c' # DS-Replication-Get-Changes-In-Filtered-Set
+  filter_machine_account:
+    SubjectUserName|endswith: '$'
+  condition: selection and not filter_machine_account
+falsepositives:
+  - Accounts that replicate by design, such as Entra Connect's directory sync account (MSOL_...).
+    Allow them by name.
+level: high

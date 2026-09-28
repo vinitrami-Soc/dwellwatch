@@ -66,11 +66,14 @@ def test_a_security_log_rule_converts_to_each_target():
     assert "(?i:.*\\-512$)|" in wazuh and "|(?i:S\\-1\\-5\\-32\\-544$)|" in wazuh
 
 
-def test_every_rule_converts_to_every_target():
+def test_every_rule_converts_to_every_target_except_sysmon_10_for_sentinel():
     files, skipped = render_all()
-    assert skipped == []
+    # Sentinel has no table for Sysmon's process-access events: ASIM defines none, and pySigma's
+    # Azure Monitor pipeline maps only SecurityEvent. Everything else converts everywhere.
+    assert [(skip.path.name, skip.target) for skip in skipped] == [("lsass_memory_access.yml", "sentinel")]
+    assert "Unable to determine table name" in skipped[0].reason
     rules = sorted((ROOT / "sigma").glob("stage*_*/*.yml"))
-    assert len(files) == 3 * len(rules)
+    assert len(files) == 3 * len(rules) - 1
 
 
 def test_committed_conversions_are_up_to_date():
@@ -118,12 +121,31 @@ def test_a_regex_inside_an_or_is_refused_for_splunk(tmp_path):
 
 
 @pytest.mark.parametrize("detection, reason", [
-    ("sel: {CommandLine: x}\nfilter: {User: y}\ncondition: sel and not filter", "negated"),
+    ("keywords: [mimikatz]\ncondition: keywords", "keyword"),
     ("sel: {CommandLine|re: 'C:\\\\\\\\Temp'}\ncondition: sel", "literal backslash"),
 ])
 def test_what_the_wazuh_generator_cannot_express_is_refused(tmp_path, detection, reason):
     with pytest.raises(UnsupportedForTarget, match=reason):
         convert(write_rule(tmp_path, detection), "wazuh")
+
+
+def test_a_negated_condition_becomes_a_negative_lookahead():
+    wazuh = convert(ROOT / "sigma" / "stage3_credential_theft" / "dcsync_by_non_dc_account.yml", "wazuh")
+    field = '<field name="win.eventdata.subjectUserName" type="pcre2">(?s)^(?!(?i:.*\\$$))</field>'
+    assert field in wazuh
+    pattern = pcre2.compile("(?s)^(?!(?i:.*\\$$))")
+    assert pattern.search("Administrator") and not pattern.search("AR-WIN-DC$")
+
+
+def test_a_negated_field_the_source_never_has_is_dropped_as_always_true(tmp_path, monkeypatch):
+    # Security 4688 has no OriginalFileName, so "not OriginalFileName x" holds for every 4688 event.
+    monkeypatch.setattr(conv, "_wazuh_ids", lambda: {"11111111-2222-4333-8444-555555555555": 119990})
+    rule = write_rule(tmp_path, "sel: {CommandLine|contains: secret}\nfilter: {OriginalFileName: x.exe}\n"
+                                "condition: sel and not filter")
+    wazuh = convert(rule, "wazuh")
+    sysmon, security = wazuh.split("<!-- Security event 4688 -->")
+    assert "win.eventdata.originalFileName" in sysmon and "(?!" in sysmon
+    assert "originalFileName" not in security and "win.eventdata.commandLine" in security
 
 
 def test_a_rule_without_a_wazuh_id_block_is_an_error(tmp_path):
@@ -179,6 +201,13 @@ def assert_wazuh_agrees_with_replay(events):
 
 
 PS = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+LSASS = "C:\\Windows\\system32\\lsass.exe"
+REPLICATE = "{1131f6ad-9c07-11d1-f79f-00c04fc2dcd2}"  # DS-Replication-Get-Changes-All
+
+
+def sysmon_event(event_id, **fields):
+    return {"EventID": str(event_id), "Channel": "Microsoft-Windows-Sysmon/Operational", "Computer": "dc01",
+            "TimeCreated": "2025-04-24T09:00:00Z", **fields}
 
 
 def encoded(script):
@@ -213,17 +242,24 @@ PLANTED = [
     process_event("net view /domain", "C:\\Windows\\System32\\net.exe"),
     process_event("net user /domain", "C:\\Windows\\System32\\net.exe"),
     process_event("adf.exe -f (objectcategory=person)", "C:\\Temp\\adf.exe", original_file_name="AdFind.exe"),
+    sysmon_event(10, SourceImage="C:\\Tools\\m.exe", TargetImage=LSASS, GrantedAccess="0x1010", CallTrace="x"),
+    sysmon_event(10, SourceImage="C:\\Windows\\System32\\csrss.exe", TargetImage=LSASS, GrantedAccess="0x1fffff",
+                 CallTrace="x"),  # a negated condition that holds
+    sysmon_event(11, Image="C:\\Tools\\p.exe", TargetFilename="C:\\Windows\\Temp\\lsass.dmp"),
+    sysmon_event(11, Image="C:\\Windows\\System32\\lsass.exe", TargetFilename="C:\\Windows\\NTDS\\ntds.dit"),
+    security_event(4662, SubjectUserName="jdoe", AccessMask="0x100", Properties=REPLICATE),
+    security_event(4662, SubjectUserName="DC02$", AccessMask="0x100", Properties=REPLICATE),
 ]
 
 
 def test_wazuh_agrees_with_replay_on_planted_events():
-    assert assert_wazuh_agrees_with_replay(PLANTED) == 16
+    assert assert_wazuh_agrees_with_replay(PLANTED) == 19
 
 
 @pytest.mark.parametrize("relative, alerts", [
     ("T1490/atomic_red_team/windows-sysmon.log", 6),
     ("T1490/atomic_red_team/4688_xml_windows_security_delete_shadow.log", 2),
-    ("T1003.003/atomic_red_team/windows-sysmon.log", 0),
+    ("T1003.003/atomic_red_team/windows-sysmon.log", 3),
     ("T1098/windows_multiple_passwords_changed/windows_multiple_passwords_changed.log", 40),
     ("T1098/account_manipulation/xml-windows-security.log", 24),
     ("T1098/dnsadmins_member_added/windows-security.log", 1),
@@ -232,6 +268,9 @@ def test_wazuh_agrees_with_replay_on_planted_events():
     ("T1219/screenconnect/screenconnect_sysmon.log", 5),
     ("T1482/atomic_red_team/windows-sysmon.log", 7),
     ("T1087.002/AD_discovery/windows-sysmon.log", 10),
+    ("T1003.001/atomic_red_team/windows-sysmon.log", 66),
+    ("T1003.006/mimikatz/xml-windows-security.log", 4),
+    ("T1003.006/impacket/windows-security-xml.log", 0),
 ])
 def test_wazuh_agrees_with_replay_on_real_events(relative, alerts):
     assert assert_wazuh_agrees_with_replay(load_events(dataset(relative))) == alerts

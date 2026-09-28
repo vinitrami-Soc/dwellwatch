@@ -1,0 +1,41 @@
+title: AD Database Copied
+id: 6cf54d41-7f1f-4f40-a3b9-8f948d71c386
+status: experimental
+description: |
+  Detects a copy of NTDS.dit, the Active Directory database that holds every password hash in the
+  domain: ntdsutil's install-from-media snapshot, the file read out of a shadow copy by path
+  (whatever tool copies it; for cmd.exe's built-in copy that is cmd.exe itself), or esentutl
+  copying it through its own /vss switch. The SYSTEM hive, needed to decrypt the hashes, is
+  covered by the credential hives rule. DwellWatch stage 3 (credential theft).
+references:
+  - https://attack.mitre.org/techniques/T1003/003/
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.credential-access
+  - attack.t1003.003
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_ntdsutil_binary:
+    - Image|endswith: '\ntdsutil.exe'
+    - OriginalFileName: 'ntdsutil.exe'
+  selection_ntdsutil_ifm:
+    CommandLine|contains: 'ifm'
+  selection_shadow_source:
+    CommandLine|contains: 'HarddiskVolumeShadowCopy'
+  selection_ntds_file:
+    CommandLine|contains: '\ntds.dit'
+  selection_esentutl_binary:
+    - Image|endswith: '\esentutl.exe'
+    - OriginalFileName: 'esentutl.exe'
+  selection_esentutl_vss:
+    CommandLine|contains: '/vss'
+  condition: >-
+    (selection_ntdsutil_binary and selection_ntdsutil_ifm)
+    or (selection_shadow_source and selection_ntds_file)
+    or (selection_esentutl_binary and selection_esentutl_vss and selection_ntds_file)
+falsepositives:
+  - Install-from-media snapshots made on purpose to build a new domain controller.
+level: high

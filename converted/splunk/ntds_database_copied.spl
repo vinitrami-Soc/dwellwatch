@@ -1,0 +1,1 @@
+(Image="*\\ntdsutil.exe" OR OriginalFileName="ntdsutil.exe" CommandLine="*ifm*") OR (CommandLine="*HarddiskVolumeShadowCopy*" CommandLine="*\\ntds.dit*") OR (Image="*\\esentutl.exe" OR OriginalFileName="esentutl.exe" CommandLine="*/vss*" CommandLine="*\\ntds.dit*")

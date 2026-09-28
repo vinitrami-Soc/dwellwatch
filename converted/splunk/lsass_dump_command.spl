@@ -1,0 +1,1 @@
+(Image IN ("*\\procdump.exe", "*\\procdump64.exe", "*\\PPLdump.exe") OR OriginalFileName="procdump" CommandLine="*lsass*") OR (Image="*\\rundll32.exe" OR OriginalFileName="RUNDLL32.EXE" CommandLine="*comsvcs*" CommandLine IN ("*minidump*", "*#24*")) OR CommandLine IN ("*sekurlsa::*", "*lsadump::*", "*/fullmemdmp*")

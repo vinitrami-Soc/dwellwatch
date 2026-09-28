@@ -7,7 +7,8 @@ It reproduces what the generated rules depend on, as Wazuh 4.14.8's own ruleset 
 - Values stay JSON-escaped: backslashes arrive doubled and quotes as \\" (the events in Wazuh's
   ruleset/testing/tests/sysmon_eid_1.ini).
 - Parents: <if_group>sysmon_event1</if_group> is reached by Sysmon event 1 at severity
-  INFORMATION (rules 60004, 61600, 61603); <if_sid>60103</if_sid> by a Security event at severity
+  INFORMATION (rules 60004, 61600, 61603), and sysmon_event_10 and sysmon_event_11 likewise by
+  events 10 and 11 (61612, 61613); <if_sid>60103</if_sid> by a Security event at severity
   AUDIT_SUCCESS (rules 60001, 60103).
 
 Fields are matched with the PCRE2 library itself, as Wazuh's type="pcre2" does.
@@ -68,8 +69,9 @@ def reaches(rule, fields):
     """Whether the event gets as far as this rule's parent."""
     channel, event_id = fields.get("win.system.channel"), fields.get("win.system.eventID")
     severity = fields["win.system.severityValue"]
-    if rule.if_group == "sysmon_event1":
-        return (channel, event_id, severity) == (SYSMON, "1", "INFORMATION")
+    sysmon_event = {"sysmon_event1": "1", "sysmon_event_10": "10", "sysmon_event_11": "11"}
+    if rule.if_group in sysmon_event:
+        return (channel, event_id, severity) == (SYSMON, sysmon_event[rule.if_group], "INFORMATION")
     if rule.if_sid == "60103":
         return (channel, severity) == ("Security", "AUDIT_SUCCESS")
     raise ValueError(f"rule {rule.id} has a parent the model does not know")
@@ -90,53 +92,80 @@ def _name(path):
     return path.rsplit("\\", 1)[-1].lower()
 
 
-def _fields(event):
-    return (_name(event.get("Image", "")), event.get("OriginalFileName", "").lower(),
-            _name(event.get("ParentImage", "")), event.get("CommandLine", "").lower(),
-            event.get("ParentCommandLine", "").lower())
+def _base(event, key):
+    return _name(event.get(key, ""))
+
+
+def _low(event, key):
+    return event.get(key, "").lower()
 
 
 SYSTEM_PROCESSES = {"svchost.exe", "lsm.exe", "csrss.exe", "lsass.exe", "winlogon.exe", "wininit.exe", "smss.exe",
                     "taskhost.exe", "services.exe", "dllhost.exe", "explorer.exe"}
+SCRIPT_OR_BINARY = re.compile(r"\.(exe|com|dll|vbs|js|bat|cmd|pif|wsh|ps1|lnk|msi|vbe)", re.I)
 
-# The built-in Sysmon event 1 rules at level 10 or more that hang beside DwellWatch's, from
-# 0800-sysmon_id_1.xml, 0595-win-sysmon_rules.xml (and its copy 0330) and
-# 0910-ms-exchange-proxylogon_rules.xml. Each test is looser than the rule it stands for: it may
-# say a rule could match when Wazuh's would not, never the reverse.
-SYSMON_1_RIVALS = [
-    (92016, 13, lambda img, ofn, par, cl, pcl: ofn == "certutil.exe"),  # renamed certutil
-    (92018, 13, lambda img, ofn, par, cl, pcl: ofn == "certutil.exe"),  # certutil decode
-    (92019, 13, lambda img, ofn, par, cl, pcl: ofn == "msmpeng.exe"),  # Defender from an odd path
-    (92046, 12, lambda img, ofn, par, cl, pcl: par == "fodhelper.exe"),
-    (92047, 12, lambda img, ofn, par, cl, pcl: ofn == "mshta.exe"),
-    (92049, 12, lambda img, ofn, par, cl, pcl: "verclsid" in cl),
-    (92051, 12, lambda img, ofn, par, cl, pcl: ofn == "wscript.exe"),
-    (92053, 12, lambda img, ofn, par, cl, pcl: "jscript" in pcl),
-    (92054, 14, lambda img, ofn, par, cl, pcl: "svchost.exe -k netsvcs" in pcl),
-    (92055, 12, lambda img, ofn, par, cl, pcl: ofn in ("computerdefaults.exe", "fodhelper.exe")),
-    (92057, 12, lambda img, ofn, par, cl, pcl: par == "powershell.exe" and re.search(r"powershell\.exe.+ -e", cl)),
-    (92058, 12, lambda img, ofn, par, cl, pcl: ofn == "sdbinst.exe"),
-    (92060, 15, lambda img, ofn, par, cl, pcl: "\u202e" in par),
-    (92062, 14, lambda img, ofn, par, cl, pcl: par == "control.exe" and img == "powershell.exe"),
-    (92064, 15, lambda img, ofn, par, cl, pcl: "\u202e" in img),
-    (92074, 12, lambda img, ofn, par, cl, pcl: ofn in ("curl.exe", "wget.exe")),
-    (92075, 12, lambda img, ofn, par, cl, pcl: ofn == "certutil.exe"),
-    (92077, 10, lambda img, ofn, par, cl, pcl: "securitycenter2" in cl),
-    (92078, 10, lambda img, ofn, par, cl, pcl: "cmd.exe" in cl),  # its E:\ working-directory test dropped
-    (92081, 15, lambda img, ofn, par, cl, pcl: ofn == "rundll32.exe"),
-    # 61618 to 61640: a system process's name on the wrong binary or under the wrong parent
-    (61618, 12, lambda img, ofn, par, cl, pcl: img in SYSTEM_PROCESSES or par in ("lsm.exe", "lsass.exe")),
-    (91000, 12, lambda img, ofn, par, cl, pcl: par == "umworkerprocess.exe"),
-    (91006, 12, lambda img, ofn, par, cl, pcl: "microsoft.exchange" in cl),
-    (91007, 12, lambda img, ofn, par, cl, pcl: "system.net.sockets.tcpclient" in cl),
-]
+# The built-in rules at level 10 or more that hang beside DwellWatch's, by parent group, from
+# Wazuh 4.14.8's 0800-sysmon_id_1.xml, 0595-win-sysmon_rules.xml (and its copy 0330),
+# 0910-ms-exchange-proxylogon_rules.xml, 0945-sysmon_id_10.xml and 0830-sysmon_id_11.xml.
+# Each test is looser than the rule it stands for: it may say a rule could match when Wazuh's
+# would not, never the reverse.
+RIVALS = {
+    "sysmon_event1": [
+        (92016, 13, lambda e: _low(e, "OriginalFileName") == "certutil.exe"),  # renamed certutil
+        (92018, 13, lambda e: _low(e, "OriginalFileName") == "certutil.exe"),  # certutil decode
+        (92019, 13, lambda e: _low(e, "OriginalFileName") == "msmpeng.exe"),  # Defender from an odd path
+        (92046, 12, lambda e: _base(e, "ParentImage") == "fodhelper.exe"),
+        (92047, 12, lambda e: _low(e, "OriginalFileName") == "mshta.exe"),
+        (92049, 12, lambda e: "verclsid" in _low(e, "CommandLine")),
+        (92051, 12, lambda e: _low(e, "OriginalFileName") == "wscript.exe"),
+        (92053, 12, lambda e: "jscript" in _low(e, "ParentCommandLine")),
+        (92054, 14, lambda e: "svchost.exe -k netsvcs" in _low(e, "ParentCommandLine")),
+        (92055, 12, lambda e: _low(e, "OriginalFileName") in ("computerdefaults.exe", "fodhelper.exe")),
+        (92057, 12, lambda e: _base(e, "ParentImage") == "powershell.exe"
+            and re.search(r"powershell\.exe.+ -e", _low(e, "CommandLine"))),
+        (92058, 12, lambda e: _low(e, "OriginalFileName") == "sdbinst.exe"),
+        (92060, 15, lambda e: "\u202e" in e.get("ParentImage", "")),
+        (92062, 14, lambda e: _base(e, "ParentImage") == "control.exe" and _base(e, "Image") == "powershell.exe"),
+        (92064, 15, lambda e: "\u202e" in e.get("Image", "")),
+        (92074, 12, lambda e: _low(e, "OriginalFileName") in ("curl.exe", "wget.exe")),
+        (92075, 12, lambda e: _low(e, "OriginalFileName") == "certutil.exe"),
+        (92077, 10, lambda e: "securitycenter2" in _low(e, "CommandLine")),
+        (92078, 10, lambda e: "cmd.exe" in _low(e, "CommandLine")),  # its E:\ working-directory test dropped
+        (92081, 15, lambda e: _low(e, "OriginalFileName") == "rundll32.exe"
+            and re.search(r'.(html|htm|txt|png|jpg|pdf)[\\"]*,#', _low(e, "CommandLine"))),
+        # 61618 to 61640: a system process's name on the wrong binary or under the wrong parent
+        (61618, 12, lambda e: _base(e, "Image") in SYSTEM_PROCESSES
+            or _base(e, "ParentImage") in ("lsm.exe", "lsass.exe")),
+        (91000, 12, lambda e: _base(e, "ParentImage") == "umworkerprocess.exe"),
+        (91006, 12, lambda e: "microsoft.exchange" in _low(e, "CommandLine")),
+        (91007, 12, lambda e: "system.net.sockets.tcpclient" in _low(e, "CommandLine")),
+    ],
+    "sysmon_event_10": [
+        (92900, 12, lambda e: _base(e, "TargetImage") == "lsass.exe"),  # 0x1010 or 0x40, not from Program Files
+        (92910, 12, lambda e: _base(e, "TargetImage") == "explorer.exe"),
+        (92920, 14, lambda e: _base(e, "TargetImage") == "mstsc.exe"),
+    ],
+    "sysmon_event_11": [
+        (92206, 12, lambda e: _base(e, "Image") == "spoolsv.exe"),
+        (92207, 12, lambda e: "\\users\\public\\" in _low(e, "TargetFilename")
+            and SCRIPT_OR_BINARY.search(e.get("TargetFilename", ""))),
+        (92211, 14, lambda e: _base(e, "Image") == "rundll32.exe"
+            and SCRIPT_OR_BINARY.search(e.get("TargetFilename", ""))),
+        (92212, 14, lambda e: _base(e, "Image") == "powershell.exe"
+            and re.search(r"\.(7z|zip|rar)", _low(e, "TargetFilename"))),
+        (92213, 15, lambda e: "\\appdata\\local\\temp\\" in _low(e, "TargetFilename")
+            and SCRIPT_OR_BINARY.search(e.get("TargetFilename", ""))),
+        (92214, 15, lambda e: _base(e, "Image") in ("winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe")),
+        (92215, 12, lambda e: _base(e, "Image") == "mshta.exe"),
+    ],
+}
 
 
 def rivals(rule, event):
     """The built-in rules that Wazuh would try before `rule` and that could match `event`."""
     if rule.if_sid == "60103":
         return [] if rule.level > SECURITY_SUCCESS_MAX_LEVEL else ["a child of 60103"]
-    if rule.if_group != "sysmon_event1":
+    if rule.if_group not in RIVALS:
         raise ValueError(f"rule {rule.id} has a parent the model does not know")
-    fields = _fields(event)
-    return [rival for rival, level, could_match in SYSMON_1_RIVALS if level >= rule.level and could_match(*fields)]
+    return [rival for rival, level, could_match in RIVALS[rule.if_group]
+            if level >= rule.level and could_match(event)]

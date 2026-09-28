@@ -1,0 +1,93 @@
+<!-- LSASS Dumped From The Command Line
+     Generated from sigma/stage3_credential_theft/lsass_dump_command.yml (e9e873d7-6404-43cb-9330-1d5a84db019c) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="103010" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}procdump\.exe$)|(?i:.*\\{1,2}procdump64\.exe$)|(?i:.*\\{1,2}PPLdump\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*lsass)</field>
+    <description>DwellWatch stage 3: LSASS Dumped From The Command Line</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103011" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:procdump$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*lsass)</field>
+    <description>DwellWatch stage 3: LSASS Dumped From The Command Line</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103012" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}rundll32\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*comsvcs))(?=(?:(?i:.*minidump)|(?i:.*\#24)))</field>
+    <description>DwellWatch stage 3: LSASS Dumped From The Command Line</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103013" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:RUNDLL32\.EXE$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*comsvcs))(?=(?:(?i:.*minidump)|(?i:.*\#24)))</field>
+    <description>DwellWatch stage 3: LSASS Dumped From The Command Line</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="103014" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*sekurlsa::)|(?i:.*lsadump::)|(?i:.*/fullmemdmp))</field>
+    <description>DwellWatch stage 3: LSASS Dumped From The Command Line</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="103015" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}procdump\.exe$)|(?i:.*\\{1,2}procdump64\.exe$)|(?i:.*\\{1,2}PPLdump\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*lsass)</field>
+    <description>DwellWatch stage 3: LSASS Dumped From The Command Line</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="103016" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}rundll32\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*comsvcs))(?=(?:(?i:.*minidump)|(?i:.*\#24)))</field>
+    <description>DwellWatch stage 3: LSASS Dumped From The Command Line</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="103017" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*sekurlsa::)|(?i:.*lsadump::)|(?i:.*/fullmemdmp))</field>
+    <description>DwellWatch stage 3: LSASS Dumped From The Command Line</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+</group>

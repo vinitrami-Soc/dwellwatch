@@ -1,0 +1,17 @@
+<!-- Directory Replication Requested By A User Account
+     Generated from sigma/stage3_credential_theft/dcsync_by_non_dc_account.yml (17e5a4df-a794-476d-9062-2660e845ba2e) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Security audit success -->
+  <rule id="103030" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID" type="pcre2">(?s)^(?:4662$)</field>
+    <field name="win.eventdata.accessMask" type="pcre2">(?s)^(?i:0x100$)</field>
+    <field name="win.eventdata.properties" type="pcre2">(?s)^(?:(?i:.*1131f6aa\-9c07\-11d1\-f79f\-00c04fc2dcd2)|(?i:.*1131f6ad\-9c07\-11d1\-f79f\-00c04fc2dcd2)|(?i:.*89e95b76\-444d\-4c62\-991a\-0facbeda640c))</field>
+    <field name="win.eventdata.subjectUserName" type="pcre2">(?s)^(?!(?i:.*\$$))</field>
+    <description>DwellWatch stage 3: Directory Replication Requested By A User Account</description>
+    <mitre>
+      <id>T1003.006</id>
+    </mitre>
+    <group>dwellwatch_stage3,</group>
+  </rule>
+</group>

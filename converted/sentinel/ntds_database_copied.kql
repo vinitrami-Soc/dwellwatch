@@ -1,0 +1,4 @@
+// AD Database Copied
+// Generated from sigma/stage3_credential_theft/ntds_database_copied.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where ((TargetProcessName endswith "\\ntdsutil.exe" or TargetProcessFileOriginalName =~ "ntdsutil.exe") and TargetProcessCommandLine contains "ifm") or (TargetProcessCommandLine contains "HarddiskVolumeShadowCopy" and TargetProcessCommandLine contains "\\ntds.dit") or ((TargetProcessName endswith "\\esentutl.exe" or TargetProcessFileOriginalName =~ "esentutl.exe") and TargetProcessCommandLine contains "/vss" and TargetProcessCommandLine contains "\\ntds.dit")

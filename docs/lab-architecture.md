@@ -9,7 +9,7 @@ DwellWatch runs in two modes that share the same rules and the same Python code.
 
 ## Replay datasets
 
-`datasets/fetch.sh` fetches eleven files from one pinned commit of attack_data
+`datasets/fetch.sh` fetches fourteen files from one pinned commit of attack_data
 (`52c9d8a53167872293c9d0ca359b5166fb25e243`) and checks each one against a pinned SHA-256.
 Nothing it fetches is committed: `datasets/` is gitignored apart from the script.
 
@@ -17,7 +17,10 @@ Nothing it fetches is committed: `datasets/` is gitignored apart from the script
 |---|---|---|---|
 | `T1490/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1490 tests 1 to 6 on a domain controller: vssadmin, wmic and PowerShell shadow-copy deletion, `wbadmin delete catalog`, bcdedit recovery tampering, `wbadmin delete systemstatebackup` | 285 Sysmon | Attack: every stage 5 rule must fire on its command |
 | `T1490/atomic_red_team/4688_xml_windows_security_delete_shadow.log` | The same shadow-copy deletion, seen by Security 4688 instead of Sysmon | 4 Security | Attack: the rules must work without Sysmon |
-| `T1003.003/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1003.003 (NTDS.dit theft): `vssadmin create shadow`, `wmic shadowcopy call create`, PowerShell's `Win32_ShadowCopy.Create()`, `ntdsutil ifm`, the test runner's own `-EncodedCommand` PowerShell, plus the host's ordinary background activity | 7,010 Sysmon | Control: no stage 5 rule may fire |
+| `T1003.003/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1003.003 (NTDS.dit theft): `vssadmin create shadow`, `wmic shadowcopy call create`, PowerShell's `Win32_ShadowCopy.Create()`, `ntdsutil ifm`, NTDS.dit and SYSTEM copied out of a shadow copy, `reg save HKLM\SYSTEM`, the test runner's own `-EncodedCommand` PowerShell, plus the host's ordinary background activity | 7,010 Sysmon | Control for stage 5: no stage 5 rule may fire. Attack for stage 3: each theft step fires |
+| `T1003.001/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1003.001: LSASS dumped with procdump (and a renamed copy), comsvcs.dll's MiniDump, Dumpert, Task Manager and a mimikatz-like tool, with the host's ordinary LSASS access around them | 7,960 Sysmon (6,909 of them event 10) | Attack and control: every dumping tool fires; svchost, csrss, wininit, WMI and PowerShell opening LSASS do not |
+| `T1003.006/mimikatz/xml-windows-security.log` | DCSync with mimikatz from a user account | 11 Security | Attack: each replication request fires |
+| `T1003.006/impacket/windows-security-xml.log` | DCSync with Impacket's secretsdump, run as the domain controller's machine account | 7 Security | Known blind spot: nothing fires, and the test pins that |
 | `T1098/windows_multiple_passwords_changed/windows_multiple_passwords_changed.log` | An administrator resetting 40 accounts' passwords on a domain controller, with the PowerShell that did it | 345 (133 Security) | Attack: one stage 1 reset signal per reset, each naming the reset account |
 | `T1098/account_manipulation/xml-windows-security.log` | Accounts created, enabled and reset (21 resets), and four group adds: three to Domain Admins, one of them an account adding itself, and one to a workstation's `None` group | 430 Security | Attack and control: the Domain Admins adds fire; the `None` add, and 400 other account events, do not |
 | `T1098/dnsadmins_member_added/windows-security.log` | An account added to DnsAdmins, whose members can make the DNS service load code | 228 (173 Security) | Attack: the one add fires |
@@ -170,6 +173,51 @@ the remote-tool rule has no unseen result either way: it fired on nothing in 392
 Commands that stayed quiet, correctly: local `net user` (a webshell sample), `net view`
 without `/domain`, `net session`, `net use`, and Ryuk's and Prestige's `net stop`.
 
+### Stage 3 on real data
+
+The three stage 3 files and the T1003.003 run replay to the counts `pytest` pins:
+
+- **LSASS (T1003.001 run)**: 66 alerts. The access rule fires 53 times, on every tool that read
+  LSASS: a mimikatz-like tool named by a GUID (38 times; it opens LSASS repeatedly), procdump and
+  its renamed copy, Dumpert, comsvcs through rundll32, and Task Manager. The command-line rule
+  fires 8 times (procdump, the renamed copy, comsvcs, and the `cmd.exe` carrying mimikatz's
+  `sekurlsa::` command, because mimikatz itself never started), and the file rule 5 times, on
+  every dump named after LSASS. The run's 110 other LSASS accesses (svchost, services, csrss and
+  wininit, PowerShell's `Get-Process`, Task Manager listing processes) stay quiet, and so do the
+  shells and downloads.
+  Dumpert's `dumpert.dmp` is not named after LSASS, so only the access rule sees that dump.
+- **NTDS.dit (T1003.003 run)**: ntdsutil's IFM snapshot, `reg save HKLM\SYSTEM`, and one
+  `cmd.exe` that copies both NTDS.dit and SYSTEM out of a shadow copy, which fires both the AD
+  database and hives rules.
+- **DCSync**: mimikatz asks for replication four times as `Administrator`, four alerts. Impacket's
+  secretsdump, run as the domain controller's own machine account `AR-WIN-DC$`, raises nothing:
+  that is indistinguishable here from domain controllers replicating, and the test pins it.
+
+**On data the rules were not written against**, the first version of the stage 3 rules caught 13
+of 15 credential-theft samples: every mimikatz variant (the executable, Invoke-Mimikatz twice,
+BabyShark's), procdump, Task Manager, Dumpert and its variant, PPLdump (twice, once through a
+vulnerable driver), meterpreter's hashdump, comsvcs MiniDump, Conti's Cobalt Strike beacon reading
+LSASS, the Panache Atomic run's NTDS.dit and hive copies and seven `reg save` commands, and a
+three-request DCSync. They missed two:
+
+- **rdrleakdiag**, a Windows diagnostic tool, dumping LSASS with `/fullmemdmp`: its access was
+  recorded as Sysmon event 8, not 10, and its dump is named `minidump_668.dmp`. Its switch is now
+  in the command-line rule, a regression check from here on.
+- **MalSeclogon**, which borrows an LSASS handle through the seclogon service with access `0x1410`,
+  the mask WMI and Task Manager use all the time. Still missed; no rule separates it without
+  also alerting on those.
+
+PPLdump's command line was added to the command-line rule at the same time; both of its runs had
+already been caught through LSASS access and the dump file.
+
+Alerts that were not credential theft by a person: Sysinternals Process Monitor, run by whoever
+recorded the Clop sample, opened LSASS with full access (**one false positive**); and the LockBit
+and Ryuk binaries each opened LSASS with full access, which is malware at work, though not
+necessarily reading credentials. Stayed quiet, correctly: 1,672 ordinary LSASS accesses in the
+ransomware recordings (svchost, WMI, an EDR agent with `0x40`), domain controllers replicating as
+`DC1$`, WerFault handling other processes' crashes, and commands that never ran because the tool
+was not on the host (`procdump`, `ntdsutil` in the Panache run).
+
 ### Tested on data the rules were not written against
 
 The datasets above shaped the rules, so they cannot show how the rules generalise. On
@@ -237,10 +285,14 @@ traceback. Reading is now streamed, so the largest file (166 MB) replays in 22 M
    `ParentProcessName` becomes `ParentImage`. Every Security event also gets a `User`, the account
    correlation follows: the account acted on for a password reset or change (4723, 4724, 4738)
    or a logon (4624, 4625), because that is the account the attacker now holds; for other events,
-   such as a group change, where the target is the group, the account that acted.
+   such as a group change, where the target is the group, the account that acted. Sysmon event 10
+   takes its `User` from `SourceUser`, the account of the process reaching into another, when
+   the Sysmon version records it (older ones, as in attack_data, do not; those signals carry the
+   host only).
 3. **Gate by logsource.** A rule only sees the events its Sigma logsource covers. For
-   `process_creation` that is Sysmon event 1 and Security event 4688; for `service: security`
-   it is every Security event, and the rule names its own EventIDs.
+   `process_creation` that is Sysmon event 1 and Security event 4688; `process_access` is Sysmon
+   event 10 and `file_event` Sysmon event 11; for `service: security` it is every Security event,
+   and the rule names its own EventIDs.
 4. **Match.** pySigma parses the rule, exactly as the converters do, and replay
    evaluates pySigma's condition tree: `and`, `or`, `not`, `1 of` / `all of`, and the field
    modifiers pySigma turns into wildcards or regular expressions (`contains`, `startswith`,

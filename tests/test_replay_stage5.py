@@ -3,7 +3,7 @@
 The planted events pin down each rule's edges. The attack_data tests then replay real
 Atomic Red Team telemetry: the T1490 run must produce exactly the expected signals, and
 a T1003.003 run, which uses the same binaries to create shadow copies rather than delete
-them, must produce none.
+them, must produce no stage 5 signal.
 """
 
 import base64
@@ -161,4 +161,7 @@ def test_shadow_copy_creation_for_ntds_theft_is_not_backup_destruction():
     assert any("win32_shadowcopy).Create" in c for c in command_lines)
     assert any("-EncodedCommand" in c for c in command_lines)
     assert len(events) == 7010
-    assert replay(events, load_rules()) == []
+    signals = replay(events, load_rules())
+    assert [s for s in signals if s.stage is Stage.BACKUP_DESTRUCTION] == []
+    # The same run steals the AD database, which stage 3 catches (see test_replay_stage3.py).
+    assert {s.stage for s in signals} == {Stage.CREDENTIAL_THEFT}

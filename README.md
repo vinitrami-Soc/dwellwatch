@@ -16,9 +16,9 @@
 
 > **Status: in progress.** Phases 0 to 2 are done: the replay engine and six rules for stage 5
 > (backup destruction), tested on real Atomic Red Team and ransomware telemetry and converted for
-> Wazuh, Splunk and Sentinel. Phase 3 is under way: stages 1 (help-desk reset abuse) and 2
-> (remote tooling and discovery) are done; stages 3, 4 and 6, correlation and the metric are
-> still to come. See the [roadmap](#roadmap).
+> Wazuh, Splunk and Sentinel. Phase 3 is under way: stages 1 (help-desk reset abuse), 2 (remote
+> tooling and discovery) and 3 (credential theft) are done; stages 4 and 6, correlation and the
+> metric are still to come. See the [roadmap](#roadmap).
 
 **Headline metric:** _not measured yet._ Once the chain has been emulated, this line will read
 "First alert fired N minutes before encryption in X of Y emulated runs", with the denominator and
@@ -51,7 +51,7 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 |---|---|---|---|---|
 | 1 | Help-desk reset abuse | Impersonates an employee, gets a password or MFA reset | Windows Security 4724 (password reset); group adds 4728, 4732, 4756. MFA resets are in the identity provider's logs, not Windows' | T1078, T1098, T1556 |
 | 2 | Remote tooling and discovery | Installs remote access, runs discovery commands | Sysmon 1 or Security 4688 (process creation) | T1219, T1087, T1018, T1482 |
-| 3 | Credential theft | Copies the AD database or reads LSASS | Sysmon 10 (access to lsass), 11 (NTDS.dit copy); Security 4662 with replication rights | T1003.001, T1003.003 |
+| 3 | Credential theft | Copies the AD database or reads LSASS | Sysmon 10 (access to lsass), 11 (dump files, NTDS.dit copies); process creation for dump and copy commands; Security 4662 with replication rights | T1003.001, T1003.002, T1003.003, T1003.006 |
 | 4 | Lateral movement | Moves host to host with the stolen account | Security 4624 logon types 3 and 10; Sysmon 1 for psexec and wmic | T1021, T1570 |
 | 5 | Backup destruction | Deletes shadow copies and backups before encrypting | Sysmon 1: vssadmin, wbadmin, bcdedit, diskshadow, wmic, reagentc | T1490 |
 | 6 | Encryption (backstop) | Mass file changes, ransom notes | Wazuh FIM burst; canary file modification | T1486 |
@@ -66,6 +66,12 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 2 | [Domain Trusts Or Controllers Listed](sigma/stage2_remote_discovery/domain_trust_discovery.yml) | `nltest /domain_trusts` or `/dclist`, dsquery for trusts, PowerView's trust and DC functions |
 | 2 | [Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView](sigma/stage2_remote_discovery/ad_recon_tool.yml) | AdFind or SharpHound (renamed too), AD Explorer snapshots, PowerView's account and computer functions |
 | 2 | [Domain Queried With net](sigma/stage2_remote_discovery/net_domain_query.yml) | `net user`, `group`, `accounts` or `view` with `/domain`, one alert per command |
+| 3 | [LSASS Memory Opened For Credential Theft](sigma/stage3_credential_theft/lsass_memory_access.yml) | LSASS opened through the dump functions, or with full or read access by anything but the system processes (Sysmon 10) |
+| 3 | [LSASS Dumped From The Command Line](sigma/stage3_credential_theft/lsass_dump_command.yml) | procdump or PPLdump on lsass, comsvcs MiniDump, rdrleakdiag, mimikatz commands |
+| 3 | [AD Database Copied](sigma/stage3_credential_theft/ntds_database_copied.yml) | `ntdsutil ifm`, NTDS.dit read out of a shadow copy, `esentutl /vss` |
+| 3 | [Credential Hives Saved Or Copied](sigma/stage3_credential_theft/registry_hives_copied.yml) | `reg save` of SAM, SYSTEM or SECURITY, or the hives read out of a shadow copy |
+| 3 | [Directory Replication Requested By A User Account](sigma/stage3_credential_theft/dcsync_by_non_dc_account.yml) | DCSync from any account that is not a domain controller's (Security 4662) |
+| 3 | [LSASS Dump Or AD Database Written To Disk](sigma/stage3_credential_theft/credential_dump_file_written.yml) | an LSASS dump file, or NTDS.dit outside its home folder (Sysmon 11) |
 | 5 | [Shadow Copies Deleted With vssadmin](sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml) | `vssadmin delete shadows` |
 | 5 | [Backup Catalogue Deleted With wbadmin](sigma/stage5_backup_destruction/wbadmin_delete_catalog.yml) | `wbadmin delete catalog` |
 | 5 | [Windows Recovery Disabled With bcdedit](sigma/stage5_backup_destruction/bcdedit_recovery_disabled.yml) | `bcdedit ... recoveryenabled no`, `bootstatuspolicy ignoreallfailures` |
@@ -85,10 +91,17 @@ shell or download around it. On data they were not written against, their first 
 positives; the two misses (`net view /domain`, PowerView's `Get-DomainController`) are now
 fixed.
 
+The stage 3 rules catch every LSASS dumping method in the Atomic T1003.001 run (procdump, a
+renamed copy, comsvcs, Dumpert, Task Manager, a mimikatz-like tool) while 110 ordinary LSASS
+accesses stay quiet, every step of an NTDS.dit theft, and mimikatz's DCSync. On data they were
+not written against, their first version caught 13 of 15 credential-theft samples, with one false
+positive (Process Monitor opening LSASS). rdrleakdiag's dump is now covered; MalSeclogon, and
+DCSync run as a domain controller's machine account, are known gaps.
+
 For stage 5, the Atomic Red Team T1490 run from attack_data (285 events) raises exactly
 one alert per targeted command, 6 in all, and none for the `cmd.exe` processes that launched them.
 A 7,010-event T1003.003 run, which uses vssadmin, wmic and PowerShell to *create* shadow copies,
-raises none.
+raises no stage 5 alert (it steals NTDS.dit, which the stage 3 rules catch).
 
 The first three rules were then replayed unchanged against recordings they were not written
 against: ransomware runs from attack_data (Chaos, Clop, Conti, LockBit, REvil, Ryuk and others)
@@ -126,9 +139,9 @@ and copied without running anything:
 
 | SIEM | Files | Covers |
 |---|---|---|
-| Wazuh 4.14.8 | [`converted/wazuh/`](converted/wazuh) (local rules: copy into `/var/ossec/etc/rules/`) | Sysmon event 1, Security 4688, and the Security events the stage 1 rules read |
-| Splunk | [`converted/splunk/`](converted/splunk) (SPL searches) | Sysmon event 1; Security events collected as XML |
-| Microsoft Sentinel | [`converted/sentinel/`](converted/sentinel) (KQL) | Process creation from Sysmon, Security 4688 and Defender for Endpoint, through ASIM `imProcessCreate`; Security-log rules over `SecurityEvent` |
+| Wazuh 4.14.8 | [`converted/wazuh/`](converted/wazuh) (local rules: copy into `/var/ossec/etc/rules/`) | Sysmon events 1, 10 and 11, Security 4688, and the Security events the stage 1 and 3 rules read |
+| Splunk | [`converted/splunk/`](converted/splunk) (SPL searches) | Sysmon events 1, 10 and 11; Security events collected as XML |
+| Microsoft Sentinel | [`converted/sentinel/`](converted/sentinel) (KQL) | Process creation from Sysmon, Security 4688 and Defender for Endpoint, through ASIM `imProcessCreate`; file creation through `imFileEvent`; Security-log rules over `SecurityEvent`. Not Sysmon 10, which Sentinel has no table for |
 
 `python -m dwellwatch.convert` (or `make convert`) regenerates them, and CI fails if they fall
 out of date. Wazuh has no pySigma backend, so its rules are generated by DwellWatch itself and
@@ -141,7 +154,7 @@ express, and the converter problems found on the way, are in the
 - [x] **Phase 0:** repository scaffold, data model, CI
 - [x] **Phase 1:** replay engine and the first detections (stage 5, backup destruction)
 - [x] **Phase 2:** conversion to Wazuh, SPL and KQL
-- [ ] **Phase 3:** rules for stages 1 to 4 and 6 (stages 1 and 2 done)
+- [ ] **Phase 3:** rules for stages 1 to 4 and 6 (stages 1 to 3 done)
 - [ ] **Phase 4:** the correlation engine
 - [ ] **Phase 5:** the dwell-time metric
 - [ ] **Phase 6:** IntelPulse webhook integration
@@ -164,7 +177,7 @@ docs/             lab architecture, threat model, detection catalogue, method
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-datasets/fetch.sh          # about 27 MB of real telemetry; without it the real-data tests skip
+datasets/fetch.sh          # about 41 MB of real telemetry; without it the real-data tests skip
 ruff check
 pytest
 python -m dwellwatch.convert   # after changing a rule: regenerate converted/ (make convert)
