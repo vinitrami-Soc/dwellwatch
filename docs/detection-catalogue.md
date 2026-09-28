@@ -133,7 +133,9 @@ These were checked against Wazuh 4.14.8's own ruleset and analysisd source, not 
   one rule: the group rule's SID suffixes and whole SIDs are one pattern, its group names another.
 
 To try them on a Wazuh manager, copy `converted/wazuh/*.xml` into `/var/ossec/etc/rules/`,
-restart the manager, and paste an event into `/var/ossec/bin/wazuh-logtest`.
+restart the manager, and paste an event into `/var/ossec/bin/wazuh-logtest`. The hand-written
+FIM rules in [`wazuh/`](../wazuh) go in the same folder; they are described under
+[stage 6](#counting-note-sprays-and-fim-bursts).
 
 ## Stage 1: help-desk reset abuse
 
@@ -255,13 +257,79 @@ Real-data results are in [lab-architecture.md](lab-architecture.md#stage-6-on-re
 
 | Rule | Level | Catches | Stays quiet on | False positives | Known gaps |
 |---|---|---|---|---|---|
-| [Ransom Note Written](../sigma/stage6_encryption/ransom_note_written.yml) (Sysmon 11) | high | A `.txt`, `.html`, `.htm` or `.hta` file named like a note: `decrypt`, `how_to_`, `restore_my_files`, `your_files`, `_readme.txt` and similar | `README.txt` and other ordinary documentation, the same names as programs | Documentation named like a note | **Most notes.** In the unseen ransomware recordings it caught one family of seven (`HOW_TO_RESTORE_MY_FILES.txt`); the rest name their note some form of "readme" (`ClopReadMe.txt`, `RyukReadMe.html`, LockBit's `<id>.README.txt`, `read_it.txt`), as ordinary software does. What those runs share is volume: one process writing the same name into dozens to hundreds of folders. That needs counting across events, which is Phase 4's job |
-| [DwellWatch Canary File Touched](../sigma/stage6_encryption/canary_file_touched.yml) (Sysmon 11) | critical | Any file created or overwritten with the canary token `dwellwatch-canary` in its name: an encrypted copy, the canary rewritten, a copy | Everything else | Backup software copying the canaries | Needs the live lab's canary files. Changes that do not recreate the file are for Wazuh's file integrity monitoring on the canary paths, which Sysmon does not see |
+| [Ransom Note Written](../sigma/stage6_encryption/ransom_note_written.yml) (Sysmon 11) | high | A `.txt`, `.html`, `.htm` or `.hta` file named like a note: `decrypt`, `how_to_`, `restore_my_files`, `your_files`, `_readme.txt` and similar | `README.txt` and other ordinary documentation, the same names as programs | Documentation named like a note | **Most notes.** In the unseen ransomware recordings it caught one family of seven (`HOW_TO_RESTORE_MY_FILES.txt`); the rest name their note some form of "readme" (`ClopReadMe.txt`, `RyukReadMe.html`, LockBit's `<id>.README.txt`, `read_it.txt`), as ordinary software does. What those runs share is volume: one process writing the same name into dozens to hundreds of folders, which the [note-spray count](#counting-note-sprays-and-fim-bursts) below catches |
+| [DwellWatch Canary File Touched](../sigma/stage6_encryption/canary_file_touched.yml) (Sysmon 11) | critical | Any file created or overwritten with the canary token `dwellwatch-canary` in its name: an encrypted copy, the canary rewritten, a copy | Everything else | Backup software copying the canaries | Needs the live lab's canary files. Changes that do not recreate the file are for Wazuh's file integrity monitoring on the canary paths, which Sysmon does not see: rule 106920 [below](#counting-note-sprays-and-fim-bursts) |
 | [Disk Encryption Turned Against The Owner](../sigma/stage6_encryption/disk_encryption_abuse.yml) | high | `manage-bde` deleting key protectors, adding a password protector or forcing recovery; `Remove-BitLockerKeyProtector`, `-PasswordProtector`; DiskCryptor (`dcrypt.exe`, `dcinst.exe`) | `manage-bde -status`, `-protectors -get`, a normal rollout with `-RecoveryPassword`; `Get-BitLockerVolume` | Administrators rotating protectors by hand | BitLocker driven through WMI (`Win32_EncryptableVolume`) rather than these tools |
 | [Files Encrypted With A Command-Line Tool](../sigma/stage6_encryption/files_encrypted_with_cli_tool.yml) | medium | gpg in symmetric mode with `--passphrase` (Atomic Red Team's T1486 test, which the live lab runs), `openssl enc -pass`, `7z -p -mhe` | gpg verifying or prompting for a passphrase, other openssl commands, 7-Zip without a password or extracting | Backup scripts that encrypt archives with a passphrase in the command line | Ransomware's own encryption code, which starts no such tool; that is what the note, canary and correlation are for |
 
 All four rules report ATT&CK T1486 and have must-fire and must-stay-quiet tests in
 [`tests/test_replay_stage6.py`](../tests/test_replay_stage6.py).
+
+### Counting: note sprays and FIM bursts
+
+The brief's stage 6 detection is a *burst*: many file changes, fast. A Sigma rule sees one event
+at a time and cannot count, so the burst lives outside the Sigma rules, in two forms.
+
+**Note sprays, in replay** ([`burst.py`](../src/dwellwatch/burst.py)). One process creating or
+overwriting files of **one name in 20 different folders within 10 minutes** is a stage 6 signal
+(T1486, high), timed at the write that reaches the 20th folder, once per spray. Names and folders
+are compared without case. It reads Sysmon event 11, the same events as the note and canary rules,
+and needs no list of note names. `python -m dwellwatch.correlate` counts sprays alongside the
+rules; tests are in [`tests/test_burst.py`](../tests/test_burst.py).
+
+How the 20 was chosen: by measuring the largest number of folders any one process wrote one
+file name into, within 10 minutes, across all 392,824 events of the attack_data and
+EVTX-ATTACK-SAMPLES recordings. **The threshold was set after seeing these numbers, on the same
+recordings**, so what follows shows how well it separates the data it was set on, not how it
+generalises.
+
+| Ransomware (process, file name) | Folders | | Ordinary software (process, file name) | Folders |
+|---|---|---|---|---|
+| Conti: `System`, over SMB, `readme.txt` | 932 | | Windows, in both Clop recordings: `svchost.exe`, `settings.dat` | 14 |
+| LockBit: `ConfirmEmail.exe`, `<id>.README.txt` | 749 | | 7-Zip unpacking a source tree (pinned T1087.002 run): `readme.txt` | 10 |
+| Clop: `clop.exe`, `ClopReadMe.txt` | 245 | | PowerShell installing modules (Atomic Red Team runs): `YamlDotNet.dll` | 9 |
+| Chaos: `svchosts.exe`, `read_it.txt` | 117 | | Explorer, in Conti's Cobalt Strike recording: `readme.md` | 5 |
+| `ransomware_ttp`: `cscript.exe`, `HOW_TO_RESTORE_MY_FILES.txt` | 83 | | Anything in the 278 EVTX-ATTACK-SAMPLES files | 3 at most |
+| Ryuk: `svchost.exe`, `RyukReadMe.html` | 71 | | | |
+| Clop, second run: `README_README.txt` | 40 | | | |
+| REvil: `revil.exe`, two random `.html` names | 38 each | | | |
+| Clop: `clop.exe`, `desktop.ini.Clop` (encrypted copies) | 33 | | | |
+| REvil, second run: two `revil.exe` processes, one `.html` name, the same 15 folders | 15 each | | | |
+
+20 sits well above the most ordinary software reached (14) and below every spray but one, so the
+count fires in 8 of the 9 recordings that hold a spray and on nothing else. The miss is REvil's
+second run, whose two processes each write the same 15 folders (so counting per host would not
+help); a threshold of 15 would catch it with one folder to spare over Windows' own `settings.dat`,
+which is too thin. Other gaps: ransomware that leaves a note in only a few places (Prestige writes
+`README` into two folders), and note-writing split across many processes, which are counted
+separately. When `System` writes the
+notes over SMB (Conti), the signal is on the file server, under SYSTEM, which correlation does not
+follow across hosts.
+
+**FIM bursts, in Wazuh** ([`wazuh/`](../wazuh)). The brief asked for this as a Wazuh file integrity
+monitoring concept, and it is tuned in Wazuh's configuration, not in Sigma: FIM events have no
+Sigma log source, and a burst is a count over time, which Wazuh expresses as a frequency rule plus
+the agent's choice of folders. The three rules, IDs 106900 to 106920 (reserved in
+[`wazuh-ids.yml`](../sigma/wazuh-ids.yml)):
+
+| Rule | Level | Fires on |
+|---|---|---|
+| 106900 | 7 | Any file added, changed or deleted (Wazuh's 550, 553, 554) in a folder the agent watches with the `dwellwatch` tag. The base the burst counts |
+| 106910 | 12 | **50 changes by one process** on one agent **within 60 seconds** (`frequency="48"`: Wazuh fires on the (frequency + 2)th event), then quiet for a minute (`ignore="60"`) |
+| 106920 | 15 | A file whose path carries `dwellwatch-canary` changed, replaced or deleted, which Sysmon's event 11 cannot see |
+
+The burst counts file changes, not notes, because Wazuh's frequency rules compare whole field
+values and FIM gives the full path, with no file-name field to count by. Encryption rewrites or
+renames every file it reaches, which is a denser signal than notes anyway. "One process" needs
+who-data: the agent config, [`agent_syscheck.xml`](../wazuh/agent_syscheck.xml), watches the lab's
+share and shared documents with `whodata="yes"` and the `dwellwatch` tag.
+
+Everything above was read from Wazuh 4.14.8's source (`src/analysisd/eventinfo.c` for how
+frequency, `same_field` and `ignore` behave; `src/analysisd/decoders/syscheck.c` for the FIM field
+names), and [`tests/test_wazuh_fim.py`](../tests/test_wazuh_fim.py) checks the IDs, parents,
+field names, patterns and agent tags. None of the recordings contain FIM events, so **the rules
+have not fired on real data**; the 50-in-a-minute threshold is a starting point to tune with
+`wazuh-logtest` and an Atomic Red Team T1486 run in the live lab.
 
 ## Correlation: two stages within 24 hours
 

@@ -272,8 +272,13 @@ call the note some form of "readme", and so does ordinary software (the log forw
 `README.txt` in three of these recordings), so matching more names would trade misses for false
 positives. What every one of these runs shares is volume: one process writing the same file name
 into dozens or hundreds of folders, or `System` doing it over SMB (932 `readme.txt` in
-one Conti run). That needs counting across events, and it is planned for the correlation engine
-(Phase 4), next to the canary files and Wazuh's file integrity monitoring in the live lab. No
+one Conti run). That is now counted by [`burst.py`](../src/dwellwatch/burst.py): one process
+writing one file name into 20 folders within 10 minutes. It fires in 8 of the 9 recordings that
+hold such a spray (not REvil's second run, at 15 folders) and on no ordinary software, whose most
+is 14. The 20 was chosen after measuring these same recordings, so this is a fit, not a blind
+result; the numbers are in the
+[detection catalogue](detection-catalogue.md#counting-note-sprays-and-fim-bursts). In the live
+lab, Wazuh's file integrity monitoring and the canary files do the same job. No
 disk-encryption or command-line encryption tool appears in the unseen data, so those two rules
 have no unseen result.
 
@@ -356,11 +361,27 @@ stage 3's unseen round, Process Monitor opening LSASS, run by whoever recorded t
 backup destruction is Clop's. The host was under attack, but the incident is right for a wrong
 reason.
 
-**Attacks that stay single-stage, and why.** LockBit and Ryuk show only their binaries opening
-LSASS (stage 3); Chaos, REvil, Prestige and a second `ransomware_ttp` run only backup destruction
-(stage 5). Their other stages were either not in the recording or not detected; for Chaos,
-LockBit and Ryuk the missed stage is the ransom notes (stage 6), which counting the same note
-written into many folders would add.
+**Attacks that stay single-stage on the rules alone, and why.** LockBit and Ryuk show only their
+binaries opening LSASS (stage 3); Chaos, REvil, Prestige and a second `ransomware_ttp` run only
+backup destruction (stage 5). Their other stages were either not in the recording or not
+detected by a rule; for Chaos, LockBit, REvil and Ryuk the missed stage is the ransom notes.
+
+**With the note-spray count** ([`burst.py`](../src/dwellwatch/burst.py), which
+`python -m dwellwatch.correlate` runs alongside the rules), four of those become incidents. The
+count's threshold was set on these same recordings, so these four are not an unseen result:
+
+| Recording | Incident | Stages | Within |
+|---|---|---|---|
+| Chaos | critical, host `win-dc-ctus-attack-range-661` | backup destruction (5), note spray (6) | 2 seconds |
+| LockBit | critical, host `win-dc-ctus-attack-range-221` | credential theft (3), note spray (6) | the same second |
+| REvil, first run | critical, host `win-dc-410` | backup destruction (5), two note sprays (6) | 55 minutes |
+| Ryuk | critical, host `win-client-4137150` | credential theft (3), note spray (6) | 40 seconds |
+
+Clop's incident gains its note sprays too, so it no longer rests on the Process Monitor false
+positive: backup destruction and the sprays make it an incident on their own. Clop's second run
+and one Conti run spray notes with no other stage detected on the host, so they stay single-stage.
+In Chaos the notes start a second before the shadow copies are deleted: encryption is not always
+the last stage seen, which the dwell-time metric (Phase 5) has to allow for.
 
 **What the SIEM translations lose.** [`sigma/correlation/two_stage_24h.yml`](../sigma/correlation/two_stage_24h.yml)
 expresses the rule in Sigma's correlation syntax over DwellWatch's own alerts. pySigma turns it
@@ -406,6 +427,8 @@ Not built yet. The plan, from the project brief:
   Kali attacker, on an isolated host-only network. Comfortable on 32 GB of RAM; on 16 GB, run
   one Windows VM at a time or stay in replay mode, where the detection work is identical.
 - **Telemetry:** Sysmon and Windows Security auditing (including process command lines) on
-  both Windows machines, shipped by the Wazuh agent.
+  both Windows machines, shipped by the Wazuh agent, plus Wazuh file integrity monitoring with
+  who-data on the file share and shared documents, where the canary files live
+  ([`wazuh/agent_syscheck.xml`](../wazuh/agent_syscheck.xml)).
 - **Emulation:** Atomic Red Team only, on snapshotted VMs that nothing else depends on.
 - **Versions:** pinned here once installed. The Wazuh 4.14.x line is the target.

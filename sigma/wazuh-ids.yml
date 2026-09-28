@@ -41,3 +41,7 @@ b4a9f257-7282-4323-a97f-9560d2fdccaa: 105000 # vssadmin_shadow_delete
 85e8264b-a5fb-4325-9100-cf656f61221e: 106010 # canary_file_touched
 f3bce9bd-e656-4e10-9642-66580d7eb2cf: 106020 # disk_encryption_abuse
 2ae5d42f-d738-474f-8732-921676ca94df: 106030 # files_encrypted_with_cli_tool
+
+# Hand-written Wazuh rules, not generated from Sigma: file integrity monitoring for stage 6
+# (wazuh/dwellwatch_fim_rules.xml). Reserved here so no Sigma rule's block ever takes them.
+#   106900 file changed in a monitored folder, 106910 burst of changes, 106920 canary changed

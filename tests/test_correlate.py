@@ -269,6 +269,6 @@ def test_the_command_line_replays_then_correlates(capsys):
     from dwellwatch.correlate import main
     assert main([str(dataset("malware/ransomware_ttp/data2/windows-sysmon.log"))]) == 0
     out = capsys.readouterr().out
-    assert out.startswith("84 signal(s), 1 incident(s)")
+    assert out.startswith("85 signal(s), 1 incident(s)")  # 84 from the rules, 1 note burst
     assert "CRITICAL  host win-dc-385" in out and "critical because it includes backup destruction" in out
     assert main([str(ROOT / "no-such-file.log")]) == 2

@@ -6,6 +6,8 @@ stages of the chain within a day is how a help-desk-led intrusion looks, so that
 
     python -m dwellwatch.correlate path/to/*.log   # replay the files through the rules, then correlate
 
+The command line adds the ransom-note sprays that burst.py counts to the rules' signals.
+
 How it decides, in order:
 
 1. Signals are grouped by host and, separately, by account. Hosts are compared by their short
@@ -34,6 +36,7 @@ from pathlib import Path
 
 from sigma.exceptions import SigmaError
 
+from .burst import NoteBursts
 from .models import Incident, Severity, Signal, Stage
 from .replay import RULES_DIR, load_events, load_rules, replay
 
@@ -164,7 +167,8 @@ def _duration(delta: timedelta) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m dwellwatch.correlate",
-        description="Replay Windows event files through DwellWatch's rules, then correlate the signals.",
+        description="Replay Windows event files through DwellWatch's rules and note-burst counter, "
+                    "then correlate the signals.",
     )
     parser.add_argument("datasets", nargs="+", type=Path, help="Windows event XML, JSON Lines or JSON files, "
                                                                    "read as one timeline")
@@ -173,7 +177,9 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         rules = load_rules(args.rules)
-        signals = [s for path in args.datasets for s in replay(load_events(path), rules)]
+        bursts = NoteBursts()
+        signals = [s for path in args.datasets for s in replay(bursts.watch(load_events(path)), rules)]
+        signals += bursts.signals()
     except (OSError, ValueError, SigmaError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

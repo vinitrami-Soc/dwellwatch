@@ -54,7 +54,7 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 3 | Credential theft | Copies the AD database or reads LSASS | Sysmon 10 (access to lsass), 11 (dump files, NTDS.dit copies); process creation for dump and copy commands; Security 4662 with replication rights | T1003.001, T1003.002, T1003.003, T1003.006 |
 | 4 | Lateral movement | Moves host to host with the stolen account | Security 4624 logon types 9 and 10; process creation for PsExec, Impacket and remote WMI | T1021.001, T1021.002, T1047, T1550.002 |
 | 5 | Backup destruction | Deletes shadow copies and backups before encrypting | Sysmon 1: vssadmin, wbadmin, bcdedit, diskshadow, wmic, reagentc | T1490 |
-| 6 | Encryption (backstop) | Mass file changes, ransom notes | Sysmon 11 (notes, canary files); disk and file encryption commands; in the live lab, Wazuh FIM on the canaries | T1486 |
+| 6 | Encryption (backstop) | Mass file changes, ransom notes | Sysmon 11 (notes, canary files, one process spraying the same note into 20 folders); disk and file encryption commands; in the live lab, Wazuh FIM bursts and canaries | T1486 |
 
 ## Detections so far
 
@@ -80,6 +80,8 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 6 | [DwellWatch Canary File Touched](sigma/stage6_encryption/canary_file_touched.yml) | any write to a file carrying the canary token |
 | 6 | [Disk Encryption Turned Against The Owner](sigma/stage6_encryption/disk_encryption_abuse.yml) | BitLocker protectors deleted or password-locked, DiskCryptor |
 | 6 | [Files Encrypted With A Command-Line Tool](sigma/stage6_encryption/files_encrypted_with_cli_tool.yml) | gpg, openssl or 7-Zip encrypting with a passphrase on the command line |
+| 6 | [Same File Name Written Into Many Folders](src/dwellwatch/burst.py) (a count, not a Sigma rule) | one process writing one file name into 20 folders within 10 minutes: a ransom-note spray, whatever the note is called |
+| 6 | [Wazuh FIM burst and canary](wazuh/dwellwatch_fim_rules.xml) (Wazuh only) | 50 file changes by one process in watched folders within a minute; a canary document changed, renamed or deleted |
 | 5 | [Shadow Copies Deleted With vssadmin](sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml) | `vssadmin delete shadows` |
 | 5 | [Backup Catalogue Deleted With wbadmin](sigma/stage5_backup_destruction/wbadmin_delete_catalog.yml) | `wbadmin delete catalog` |
 | 5 | [Windows Recovery Disabled With bcdedit](sigma/stage5_backup_destruction/bcdedit_recovery_disabled.yml) | `bcdedit ... recoveryenabled no`, `bootstatuspolicy ignoreallfailures` |
@@ -114,8 +116,13 @@ DCOM or target-side WMI. Correlation is what connects such movement to the stage
 Stage 6 is the backstop. Its rules fire on DiskCryptor and BitLocker abuse in attack_data and stay
 quiet on ordinary READMEs. Honestly scored, the ransom-note rule caught one ransomware family of
 seven in the unseen recordings: most notes are named "readme", like ordinary documentation. What
-all seven share is one process writing the same note into many folders, which the correlation
-engine (Phase 4) will count; the canary files are the dependable backstop in the live lab.
+all seven share is one process writing the same note into many folders, so
+[`burst.py`](src/dwellwatch/burst.py) now counts that: one process writing one file name into 20
+folders within 10 minutes is a stage 6 signal. It fires in 8 of the 9 recordings that hold such a
+spray and on no ordinary software (whose most is 14 folders), but the 20 was set after seeing both
+sides, so that is a fit, not a blind result. In Wazuh the same job is file integrity monitoring,
+configured rather than written in Sigma ([`wazuh/`](wazuh)); the canary files are the dependable
+backstop in the live lab.
 
 For stage 5, the Atomic Red Team T1490 run from attack_data (285 events) raises exactly
 one alert per targeted command, 6 in all, and none for the `cmd.exe` processes that launched them.
@@ -149,16 +156,19 @@ Every incident says why, in a sentence:
 
 ```
 $ python -m dwellwatch.correlate datasets/attack_data/datasets/malware/ransomware_ttp/data2/windows-sysmon.log
-84 signal(s), 1 incident(s)
+85 signal(s), 1 incident(s)
 
-CRITICAL  host win-dc-385  2021-06-21 14:30Z to 2021-06-21 14:31Z  84 signal(s)
+CRITICAL  host win-dc-385  2021-06-21 14:30Z to 2021-06-21 14:31Z  85 signal(s)
   Stages 5 (backup destruction) and 6 (encryption) on host win-dc-385 within 1m; critical because it includes backup destruction.
 ```
 
 On the real recordings, the 20 pinned single-technique runs (up to 66 signals each) raise no
 incident, and across the unseen recordings four incidents appear, each on a real multi-stage
 attack: Conti's Cobalt Strike session, an Atomic Red Team run, a ransomware run, and Clop, whose
-incident leans on one stage 3 false positive. Details are in
+incident leans on one stage 3 false positive. Adding the note-spray count turns four more
+ransomware runs (Chaos, LockBit, REvil, Ryuk) into incidents and gives Clop's a genuine second
+stage; that count's threshold was set on these same recordings, so those four are not an unseen
+result. The command line counts sprays alongside the rules. Details are in
 [docs/lab-architecture.md](docs/lab-architecture.md#correlation-on-real-data). For SIEMs, the
 same rule is written in Sigma's correlation syntax in
 [`sigma/correlation/two_stage_24h.yml`](sigma/correlation/two_stage_24h.yml).
@@ -186,7 +196,9 @@ and copied without running anything:
 | Microsoft Sentinel | [`converted/sentinel/`](converted/sentinel) (KQL) | Process creation from Sysmon, Security 4688 and Defender for Endpoint, through ASIM `imProcessCreate`; file creation through `imFileEvent`; Security-log rules over `SecurityEvent`. Not Sysmon 10, which Sentinel has no table for |
 
 `python -m dwellwatch.convert` (or `make convert`) regenerates them, and CI fails if they fall
-out of date. Wazuh has no pySigma backend, so its rules are generated by DwellWatch itself and
+out of date. Stage 6's file integrity monitoring is Wazuh configuration, not Sigma: [`wazuh/`](wazuh)
+holds three hand-written rules (a burst of changes by one process in watched folders, a canary
+changed or deleted, and the per-file rule the burst counts) and the agent's `syscheck` block. Wazuh has no pySigma backend, so its rules are generated by DwellWatch itself and
 tested to fire on exactly the events the replay engine flags. What each target can and cannot
 express, and the converter problems found on the way, are in the
 [detection catalogue](docs/detection-catalogue.md).
@@ -207,6 +219,7 @@ express, and the converter problems found on the way, are in the
 ```
 sigma/            detection rules, one folder per stage, plus correlation/  (source of truth)
 converted/        generated Wazuh, Splunk and Sentinel versions of every rule
+wazuh/            hand-written Wazuh FIM rules and agent config for stage 6 (not from Sigma)
 src/dwellwatch/   replay, correlation, metric and webhook code
 tests/            offline pytest suite, run in CI
 datasets/         replay data, fetched by script and never committed

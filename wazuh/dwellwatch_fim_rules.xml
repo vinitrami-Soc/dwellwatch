@@ -1,0 +1,60 @@
+<!-- DwellWatch stage 6 by file integrity monitoring (FIM). Written by hand, not generated from Sigma.
+     Copy into /var/ossec/etc/rules/ on the Wazuh manager, next to converted/wazuh/, and merge
+     agent_syscheck.xml into each Windows lab agent's ossec.conf.
+
+     Why Wazuh config and not Sigma: a burst is many events counted over time, and Wazuh's FIM
+     events have no Sigma log source. So the burst is set here and in the agent's syscheck block:
+     which folders are watched, how fast changes are reported, and how many changes in how long
+     count as a burst. These are tuned per network in Wazuh, not in a rule other SIEMs could share.
+     The replay engine's counterpart is src/dwellwatch/burst.py, which counts ransom notes in
+     Sysmon's file events instead: Wazuh has no file-name field to count by, only the full path.
+
+     Rule IDs 106900 to 106920 are reserved for these in sigma/wazuh-ids.yml. -->
+<group name="dwellwatch,syscheck,">
+
+  <!-- What the burst counts: a file added, changed or deleted in a folder the agent watches with
+       the dwellwatch tag. Level 7, the level of Wazuh's own 550 (changed) and 553 (deleted). -->
+  <rule id="106900" level="7">
+    <if_sid>550, 553, 554</if_sid>
+    <field name="tag" type="pcre2">(?:^|,)dwellwatch(?:,|$)</field>
+    <description>DwellWatch: $(file) changed in a monitored folder</description>
+    <group>dwellwatch_fim,</group>
+  </rule>
+
+  <!-- The burst: 50 changes by one process on one agent within 60 seconds. Encryption rewrites, or
+       renames (a delete and an add), every file it reaches, hundreds a minute; a person saving
+       documents does not come close. To tune: frequency, timeframe and the folders watched.
+       - Wazuh 4.14.8 fires a frequency rule on the (frequency + 2)th matching event: it counts
+         earlier events only, and fires on the one after them (src/analysisd/eventinfo.c,
+         Search_LastSids). So 48 is the 50th change.
+       - It counts one agent's events (global_frequency would count across agents). same_field
+         compares each earlier event with the current one, so process_id makes it one process.
+         process_id comes only from who-data (whodata="yes" in agent_syscheck.xml); without it
+         this rule never fires. Remove the same_field line to count every process together.
+       - ignore="60": once fired, the rule is quiet for a minute and the changes alert as 106900.
+         Wazuh keeps one such timer per rule, across all agents, so a second host starting to
+         encrypt in the same minute is reported the minute after. -->
+  <rule id="106910" level="12" frequency="48" timeframe="60" ignore="60">
+    <if_matched_sid>106900</if_matched_sid>
+    <same_field>process_id</same_field>
+    <description>DwellWatch stage 6: $(process_name) changed 50 files in monitored folders within a minute</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+
+  <!-- A canary document changed, replaced or deleted. The Sigma rule canary_file_touched sees a
+       canary created or overwritten (Sysmon event 11); FIM also sees it changed in place, renamed
+       or deleted, which is how most ransomware encrypts. Level 15 puts it ahead of 106900 and of
+       Wazuh's malware-hash rule 99901 (level 14), the other rules under 550 and 554. -->
+  <rule id="106920" level="15">
+    <if_sid>550, 553, 554</if_sid>
+    <field name="file" type="pcre2">(?i)dwellwatch-canary</field>
+    <description>DwellWatch stage 6: canary file $(file) was changed, replaced or deleted</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+</group>

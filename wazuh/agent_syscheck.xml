@@ -1,0 +1,16 @@
+<!-- DwellWatch's file integrity monitoring on a Windows lab VM. Append to the agent's ossec.conf
+     (C:\Program Files (x86)\ossec-agent\ossec.conf) and restart the agent; Wazuh reads every
+     <ossec_config> block in the file. The rules that use it are in dwellwatch_fim_rules.xml.
+
+     - The folders: the lab's file share and the shared documents folder, where ransomware
+       starts and where the canary documents (names containing dwellwatch-canary) live. Keep the
+       list short; every watched file costs the agent a little.
+     - whodata="yes": each change is reported as it happens, with the process and account that
+       made it, from Windows object-access auditing. The burst rule, 106910, needs the process.
+     - tags="dwellwatch": how rule 106900 tells these folders from the rest of Wazuh's FIM. -->
+<ossec_config>
+  <syscheck>
+    <directories whodata="yes" tags="dwellwatch">C:\Shares</directories>
+    <directories whodata="yes" tags="dwellwatch">C:\Users\Public\Documents</directories>
+  </syscheck>
+</ossec_config>
