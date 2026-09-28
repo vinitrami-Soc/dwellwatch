@@ -31,6 +31,7 @@ from sigma.conditions import (
     ConditionValueExpression,
 )
 from sigma.exceptions import SigmaError
+from sigma.pipelines.azuremonitor import azure_monitor_pipeline
 from sigma.pipelines.sentinelasim import sentinel_asim_pipeline
 from sigma.processing.conditions import LogsourceCondition
 from sigma.processing.pipeline import ProcessingItem, ProcessingPipeline
@@ -91,6 +92,11 @@ def _splunk(text: str, path: Path) -> str:
 
 # --- Sentinel ---------------------------------------------------------------------------------
 
+# Security-log rules query Sentinel's SecurityEvent table, where the Windows Security Events
+# connector puts them with their EventData fields as columns. pySigma's ASIM pipeline maps log
+# categories (process, file, registry, network, web) to ASIM tables, and has none for this service.
+SENTINEL_SECURITY_TABLE = "SecurityEvent"
+
 # pySigma-backend-kusto 1.0.1 maps OriginalFileName to two ASIM fields, one of which
 # (TargetProcessFilename) is not in its own imProcessCreate schema, so every rule using it fails.
 # Map it to the correct field first; the ASIM pipeline then leaves it alone.
@@ -105,8 +111,19 @@ _ASIM_FIXES = ProcessingPipeline(
 )
 
 
+# pySigma-backend-kusto quotes the numbers in a value list and compares them with in~, the
+# case-insensitive string operator: EventID in~ ("4728", "4732"). SecurityEvent's EventID is an
+# integer column, so write such a list as numbers and leave nothing to Kusto's type conversion.
+_QUOTED_EVENT_IDS = re.compile(r'\bEventID in~ \(((?:"\d+", )*"\d+")\)')
+
+
 def _sentinel(text: str, path: Path) -> str:
-    query = _backend_convert(KustoBackend(_ASIM_FIXES + sentinel_asim_pipeline()), text, path, "sentinel")
+    if SigmaRule.from_yaml(text).logsource.service == "security":
+        pipeline = azure_monitor_pipeline(query_table=SENTINEL_SECURITY_TABLE)
+    else:
+        pipeline = _ASIM_FIXES + sentinel_asim_pipeline()
+    query = _backend_convert(KustoBackend(pipeline), text, path, "sentinel")
+    query = _QUOTED_EVENT_IDS.sub(lambda match: "EventID in (" + match.group(1).replace('"', "") + ")", query)
     return f"// {_title(text)}\n// Generated from {_relative(path)} by dwellwatch.convert; do not edit.\n{query}\n"
 
 
@@ -141,10 +158,14 @@ def _eventdata(field: str) -> str:
     return f"win.eventdata.{field[:1].lower()}{field[1:]}"
 
 
+def _security(field: str) -> str:
+    return "win.system.eventID" if field == "EventID" else _eventdata(field)
+
+
 # Parents checked against the Wazuh 4.14.8 ruleset: Sysmon event 1 is tagged sysmon_event1 by rule
-# 61603 (0595-win-sysmon_rules.xml); a successful Security event matches 60001 and then 60103
-# (0580-win-security_rules.xml), and Wazuh descends into the first child that matches, so 4688
-# rules hang from 60103 rather than 60001.
+# 61603 (0595-win-sysmon_rules.xml); a Security event reaches 60001 and then, if the audit
+# succeeded, 60103 (0580-win-security_rules.xml), which is where Wazuh's own rules for successful
+# Security events hang. Rules on audit failures (4625) would hang from 60104; none do yet.
 SYSMON_1 = WazuhSource("Sysmon event 1", ("<if_group>sysmon_event1</if_group>",), _eventdata)
 SECURITY_4688 = WazuhSource(
     "Security event 4688",
@@ -152,7 +173,11 @@ SECURITY_4688 = WazuhSource(
     {"Image": "win.eventdata.newProcessName", "ParentImage": "win.eventdata.parentProcessName",
      "CommandLine": "win.eventdata.commandLine"}.get,
 )
-WAZUH_SOURCES = {("windows", "process_creation"): (SYSMON_1, SECURITY_4688)}
+SECURITY = WazuhSource("Security audit success", ("<if_sid>60103</if_sid>",), _security)
+WAZUH_SOURCES = {
+    ("windows", "process_creation", None): (SYSMON_1, SECURITY_4688),
+    ("windows", None, "security"): (SECURITY,),
+}
 
 Literal = tuple[str, tuple[Any, ...]]  # a field and the values it may take (ORed)
 REGEX_FLAGS = {SigmaRegularExpressionFlag.IGNORECASE: "i", SigmaRegularExpressionFlag.MULTILINE: "m",
@@ -162,8 +187,8 @@ REGEX_FLAGS = {SigmaRegularExpressionFlag.IGNORECASE: "i", SigmaRegularExpressio
 def _wazuh(text: str, path: Path) -> str:
     rule = SigmaRule.from_yaml(text)
     stage = STAGE_FOLDER.match(path.parent.name)
-    sources = WAZUH_SOURCES.get((rule.logsource.product, rule.logsource.category))
-    if not stage or not sources or rule.logsource.service:
+    sources = WAZUH_SOURCES.get((rule.logsource.product, rule.logsource.category, rule.logsource.service))
+    if not stage or not sources:
         raise UnsupportedForTarget(path, "wazuh", f"no Wazuh parent rule is mapped for {rule.logsource}")
 
     branches = [branch for condition in rule.detection.parsed_condition
@@ -211,7 +236,8 @@ def _wazuh_ids() -> dict[str, int]:
 def _dnf(node: Any, path: Path) -> list[list[Literal]]:
     """The condition as alternatives (OR) of conditions that must all hold (AND).
 
-    ORed values of one field stay a single literal, so `Image|endswith: [a, b]` is one pattern.
+    ORed values of one field stay a single literal, so `Image|endswith: [a, b]` is one pattern, as
+    are alternatives that test the same field (TargetSid by suffix or by whole SID).
     """
     if isinstance(node, ConditionFieldEqualsValueExpression):
         return [[(node.field, (node.value,))]]
@@ -221,11 +247,18 @@ def _dnf(node: Any, path: Path) -> list[list[Literal]]:
             branches = [left + right for left in branches for right in _dnf(arg, path)]
         return branches
     if isinstance(node, ConditionOR):
-        parts = [_dnf(arg, path) for arg in node.args]
-        singles = [part[0][0] for part in parts if len(part) == 1 and len(part[0]) == 1]
-        if len(singles) == len(parts) and len({field for field, _ in singles}) == 1:
-            return [[(singles[0][0], tuple(value for _, values in singles for value in values))]]
-        return [branch for part in parts for branch in part]
+        alternatives: list[list[Literal]] = []
+        by_field: dict[str, list[Literal]] = {}  # field -> the alternative that tests only it
+        for arg in node.args:
+            for branch in _dnf(arg, path):
+                if len(branch) == 1:
+                    field, values = branch[0]
+                    if field in by_field:
+                        by_field[field][0] = (field, by_field[field][0][1] + values)
+                        continue
+                    branch = by_field[field] = [branch[0]]
+                alternatives.append(branch)
+        return alternatives
     if isinstance(node, ConditionNOT):
         raise UnsupportedForTarget(path, "wazuh", "negated conditions are not converted yet")
     if isinstance(node, ConditionValueExpression):

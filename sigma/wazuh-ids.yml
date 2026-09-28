@@ -4,6 +4,10 @@
 # 10N990. Add a line when you add a rule; never reuse or renumber a block, because alerts and any
 # Wazuh rules built on top of these refer to the numbers.
 
+# stage 1: help-desk reset abuse
+5a9f32cb-72f5-4f7a-8201-de8c0894cd9b: 101000 # password_reset_by_another_account
+3803236b-8f7a-40e7-bd0f-5aa3312df6c6: 101010 # privileged_group_member_added
+
 # stage 5: backup destruction
 b4a9f257-7282-4323-a97f-9560d2fdccaa: 105000 # vssadmin_shadow_delete
 529b5849-1e91-435b-8448-4804d93ca54e: 105010 # wbadmin_delete_catalog

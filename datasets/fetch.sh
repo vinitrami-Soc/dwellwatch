@@ -21,6 +21,10 @@ FILES="
 datasets/attack_techniques/T1490/atomic_red_team/windows-sysmon.log                  b2d2d3e6a15185fa73e7ace39dd57a3d499f65a462f7101b215161e1ccbb8e96
 datasets/attack_techniques/T1490/atomic_red_team/4688_xml_windows_security_delete_shadow.log 5e4fb0469048efa76d361ff1a66d322a7cc52851281f7a35a6d740ee4f75d1a0
 datasets/attack_techniques/T1003.003/atomic_red_team/windows-sysmon.log              ee1c7cd9fa20013c82da17f8cb1998197c117ab4c209ab56203290bc90739fda
+datasets/attack_techniques/T1098/account_manipulation/xml-windows-security.log       d989f2eea18d026813b3123a57cd625d3066fdd5b9f2ed0c93dfc596dc4f1fa1
+datasets/attack_techniques/T1098/windows_multiple_passwords_changed/windows_multiple_passwords_changed.log 2855dedf40a5c1c7af7e228db7b2201f5ccf2e567a769af9b012388bf0169b45
+datasets/attack_techniques/T1098/dnsadmins_member_added/windows-security.log         557bdeb5618fafe895da44d24660fabc321d87b467404061267e9a6c05bbcab0
+datasets/attack_techniques/T1136.001/atomic_red_team/xml-windows-security.log        9eaa564e74abbc6b5ac38d4d0a209f1240cd910e223d5f35010ae68e6355fd73
 "
 
 sha256() {

@@ -19,10 +19,11 @@ from dwellwatch.convert import UnsupportedForTarget, convert, render_all
 from dwellwatch.replay import load_events, load_rules, replay
 
 import wazuh_model
-from conftest import ROOT, dataset, process_event
+from conftest import ROOT, dataset, process_event, security_event
 
 STAGE5 = ROOT / "sigma" / "stage5_backup_destruction"
 VSSADMIN = STAGE5 / "vssadmin_shadow_delete.yml"
+GROUP_ADD = ROOT / "sigma" / "stage1_helpdesk" / "privileged_group_member_added.yml"
 
 
 def test_vssadmin_converts_to_each_target():
@@ -44,6 +45,25 @@ def test_vssadmin_converts_to_each_target():
     # Security 4688 has no OriginalFileName, so only the Image branch is generated for it.
     assert '<field name="win.eventdata.newProcessName" type="pcre2">' in wazuh
     assert wazuh.count("<rule ") == 3
+
+
+def test_a_security_log_rule_converts_to_each_target():
+    splunk = convert(GROUP_ADD, "splunk")
+    # Splunk evaluates OR before AND, so the group alternatives all sit under the EventID filter.
+    assert splunk.startswith('EventID IN (4728, 4732, 4756) TargetSid IN ("*-512", ')
+    assert ' OR TargetUserName IN ("Domain Admins", ' in splunk
+
+    sentinel = convert(GROUP_ADD, "sentinel")
+    assert sentinel.splitlines()[2] == "SecurityEvent"
+    # The event IDs are compared as numbers: SecurityEvent's EventID is an integer column.
+    assert "| where (EventID in (4728, 4732, 4756)) and (" in sentinel
+    assert 'TargetSid endswith "-512"' in sentinel
+
+    wazuh = convert(GROUP_ADD, "wazuh")
+    assert wazuh.count("<if_sid>60103</if_sid>") == wazuh.count("<rule ") == 2  # one per field tested
+    assert '<field name="win.system.eventID" type="pcre2">(?s)^(?:(?:4728$)|(?:4732$)|(?:4756$))</field>' in wazuh
+    # Suffixes and whole SIDs are alternatives on one field, so they share a rule.
+    assert "(?i:.*\\-512$)|" in wazuh and "|(?i:S\\-1\\-5\\-32\\-544$)|" in wazuh
 
 
 def test_every_rule_converts_to_every_target():
@@ -128,8 +148,12 @@ def test_wazuh_rule_ids_are_unique_and_in_the_local_range():
     assert all(block % 10 == 0 for block in blocks.values())
 
 
-def test_wazuh_levels_outrank_wazuhs_own_level_12_sysmon_rules():
-    assert {rule.level for rule in wazuh_model.load_rules(wazuh_texts())} == {13}
+def test_wazuh_levels_outrank_wazuhs_own_rules_beside_them():
+    # Wazuh tries the highest level first and stops at the first match. Its own rules under 60103
+    # (successful Security events) go up to level 9 (60115, account locked out); its Sysmon event 1
+    # rules that match these commands go up to 12 (92057, encoded PowerShell).
+    for rule in wazuh_model.load_rules(wazuh_texts()):
+        assert rule.level > (12 if rule.if_group == "sysmon_event1" else 9), rule.id
 
 
 WAZUH_RULES = wazuh_model.load_rules(wazuh_texts())
@@ -170,20 +194,30 @@ PLANTED = [
     process_event(encoded("Get-WmiObject Win32_Shadowcopy | ForEach-Object {$_.Delete();}"), PS),
     process_event(encoded("Get-CimInstance Win32_ShadowCopy | Select-Object ID"), PS),
     process_event('cmd.exe /c "vssadmin.exe delete shadows /all /quiet"', "C:\\Windows\\System32\\cmd.exe"),
-    {"EventID": "4688", "Channel": "Security", "Computer": "dc01", "TimeCreated": "2023-10-03T15:53:57Z",
-     "NewProcessName": "C:\\Windows\\System32\\wbadmin.exe", "CommandLine": "wbadmin delete catalog -quiet",
-     "SubjectUserName": "helpdesk1", "SubjectDomainName": "LAB"},
+    security_event(4688, NewProcessName="C:\\Windows\\System32\\wbadmin.exe", CommandLine="wbadmin delete catalog",
+                   SubjectUserName="helpdesk1", SubjectDomainName="LAB"),
+    security_event(4724, TargetUserName="jdoe", TargetDomainName="LAB", SubjectUserName="helpdesk1"),
+    security_event(4723, TargetUserName="jdoe", TargetDomainName="LAB", SubjectUserName="jdoe"),
+    security_event(4728, TargetUserName="Domain Admins", TargetSid="S-1-5-21-1-2-3-512"),
+    security_event(4732, TargetUserName="DnsAdmins", TargetSid="S-1-5-21-1-2-3-1101"),
+    security_event(4732, TargetUserName="Administrators", TargetSid="BUILTIN\\Administrators"),
+    security_event(4732, TargetUserName="Users", TargetSid="BUILTIN\\Users"),
+    security_event(4729, TargetUserName="Domain Admins", TargetSid="S-1-5-21-1-2-3-512"),
 ]
 
 
 def test_wazuh_agrees_with_replay_on_planted_events():
-    assert assert_wazuh_agrees_with_replay(PLANTED) == 7
+    assert assert_wazuh_agrees_with_replay(PLANTED) == 11
 
 
 @pytest.mark.parametrize("relative, alerts", [
     ("T1490/atomic_red_team/windows-sysmon.log", 6),
     ("T1490/atomic_red_team/4688_xml_windows_security_delete_shadow.log", 2),
     ("T1003.003/atomic_red_team/windows-sysmon.log", 0),
+    ("T1098/windows_multiple_passwords_changed/windows_multiple_passwords_changed.log", 40),
+    ("T1098/account_manipulation/xml-windows-security.log", 24),
+    ("T1098/dnsadmins_member_added/windows-security.log", 1),
+    ("T1136.001/atomic_red_team/xml-windows-security.log", 1),
 ])
 def test_wazuh_agrees_with_replay_on_real_events(relative, alerts):
     assert assert_wazuh_agrees_with_replay(load_events(dataset(relative))) == alerts
@@ -203,6 +237,7 @@ def test_wazuh_patterns_match_a_path_whether_or_not_its_backslashes_arrive_doubl
 
 
 def test_every_generated_file_names_its_source():
+    sources = {path.stem: path.relative_to(ROOT).as_posix() for path in (ROOT / "sigma").glob("stage*_*/*.yml")}
     for path, text in render_all()[0].items():
         if path.parts[0] != "splunk":  # SPL has no comment syntax every Splunk version accepts
-            assert f"sigma/stage5_backup_destruction/{Path(path).stem}.yml" in text
+            assert sources[Path(path).stem] in text

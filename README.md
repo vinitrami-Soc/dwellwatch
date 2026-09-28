@@ -16,8 +16,8 @@
 
 > **Status: in progress.** Phases 0 to 2 are done: the replay engine and six rules for stage 5
 > (backup destruction), tested on real Atomic Red Team and ransomware telemetry and converted for
-> Wazuh, Splunk and Sentinel. Stages 1 to 4 and 6, correlation and the metric are still to come.
-> See the [roadmap](#roadmap).
+> Wazuh, Splunk and Sentinel. Phase 3 is under way: stage 1 (help-desk reset abuse) is done;
+> stages 2 to 4 and 6, correlation and the metric are still to come. See the [roadmap](#roadmap).
 
 **Headline metric:** _not measured yet._ Once the chain has been emulated, this line will read
 "First alert fired N minutes before encryption in X of Y emulated runs", with the denominator and
@@ -48,7 +48,7 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 
 | # | Stage | What the attacker does | Primary telemetry | ATT&CK |
 |---|---|---|---|---|
-| 1 | Help-desk reset abuse | Impersonates an employee, gets a password or MFA reset | Windows Security 4724, 4738; group adds 4728, 4732, 4756 | T1078, T1098, T1556 |
+| 1 | Help-desk reset abuse | Impersonates an employee, gets a password or MFA reset | Windows Security 4724 (password reset); group adds 4728, 4732, 4756. MFA resets are in the identity provider's logs, not Windows' | T1078, T1098, T1556 |
 | 2 | Remote tooling and discovery | Installs remote access, runs discovery commands | Sysmon 1 (process creation), 3 (network) | T1219, T1087, T1018 |
 | 3 | Credential theft | Copies the AD database or reads LSASS | Sysmon 10 (access to lsass), 11 (NTDS.dit copy); Security 4662 with replication rights | T1003.001, T1003.003 |
 | 4 | Lateral movement | Moves host to host with the stolen account | Security 4624 logon types 3 and 10; Sysmon 1 for psexec and wmic | T1021, T1570 |
@@ -59,6 +59,8 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 
 | Stage | Rule | Fires on |
 |---|---|---|
+| 1 | [Password Reset On Another Account](sigma/stage1_helpdesk/password_reset_by_another_account.yml) | one account resetting another's password (4724); a weak signal on its own, for correlation |
+| 1 | [Member Added To A Privileged Group](sigma/stage1_helpdesk/privileged_group_member_added.yml) | an add to Domain, Enterprise or Schema Admins, Administrators, the Operators groups or DnsAdmins |
 | 5 | [Shadow Copies Deleted With vssadmin](sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml) | `vssadmin delete shadows` |
 | 5 | [Backup Catalogue Deleted With wbadmin](sigma/stage5_backup_destruction/wbadmin_delete_catalog.yml) | `wbadmin delete catalog` |
 | 5 | [Windows Recovery Disabled With bcdedit](sigma/stage5_backup_destruction/bcdedit_recovery_disabled.yml) | `bcdedit ... recoveryenabled no`, `bootstatuspolicy ignoreallfailures` |
@@ -66,7 +68,12 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 5 | [Shadow Copies Deleted With PowerShell](sigma/stage5_backup_destruction/powershell_shadowcopy_delete.yml) | `Win32_ShadowCopy` with `.Delete()`, `Remove-WmiObject` or `Remove-CimInstance` |
 | 5 | [Shadow Copies Deleted With Encoded PowerShell](sigma/stage5_backup_destruction/powershell_encoded_shadowcopy_delete.yml) | the same, hidden with `-EncodedCommand` |
 
-On real data from Splunk's attack_data, the Atomic Red Team T1490 run (285 events) raises exactly
+On Splunk's attack_data, the stage 1 rules fire on all 61 password resets and all 5 privileged
+group adds in four real Security logs, and stay quiet on an add to a group that grants nothing.
+On data they were not written against (EVTX-ATTACK-SAMPLES), they fired 4 times, all on attacks:
+noPac, a post-Zerologon password reset, and Guest and Network Service made local administrators.
+
+For stage 5, the Atomic Red Team T1490 run from attack_data (285 events) raises exactly
 one alert per targeted command, 6 in all, and none for the `cmd.exe` processes that launched them.
 A 7,010-event T1003.003 run, which uses vssadmin, wmic and PowerShell to *create* shadow copies,
 raises none.
@@ -107,9 +114,9 @@ and copied without running anything:
 
 | SIEM | Files | Covers |
 |---|---|---|
-| Wazuh 4.14.8 | [`converted/wazuh/`](converted/wazuh) (local rules: copy into `/var/ossec/etc/rules/`) | Sysmon event 1 and Security 4688 |
-| Splunk | [`converted/splunk/`](converted/splunk) (SPL searches) | Sysmon event 1 |
-| Microsoft Sentinel | [`converted/sentinel/`](converted/sentinel) (KQL over ASIM `imProcessCreate`) | Sysmon, Security 4688 and Defender for Endpoint, through ASIM |
+| Wazuh 4.14.8 | [`converted/wazuh/`](converted/wazuh) (local rules: copy into `/var/ossec/etc/rules/`) | Sysmon event 1, Security 4688, and the Security events the stage 1 rules read |
+| Splunk | [`converted/splunk/`](converted/splunk) (SPL searches) | Sysmon event 1; Security events collected as XML |
+| Microsoft Sentinel | [`converted/sentinel/`](converted/sentinel) (KQL) | Process creation from Sysmon, Security 4688 and Defender for Endpoint, through ASIM `imProcessCreate`; Security-log rules over `SecurityEvent` |
 
 `python -m dwellwatch.convert` (or `make convert`) regenerates them, and CI fails if they fall
 out of date. Wazuh has no pySigma backend, so its rules are generated by DwellWatch itself and
@@ -122,7 +129,7 @@ express, and the converter problems found on the way, are in the
 - [x] **Phase 0:** repository scaffold, data model, CI
 - [x] **Phase 1:** replay engine and the first detections (stage 5, backup destruction)
 - [x] **Phase 2:** conversion to Wazuh, SPL and KQL
-- [ ] **Phase 3:** rules for stages 1 to 4 and 6
+- [ ] **Phase 3:** rules for stages 1 to 4 and 6 (stage 1 done)
 - [ ] **Phase 4:** the correlation engine
 - [ ] **Phase 5:** the dwell-time metric
 - [ ] **Phase 6:** IntelPulse webhook integration
@@ -145,7 +152,7 @@ docs/             lab architecture, threat model, detection catalogue, method
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-datasets/fetch.sh          # about 13 MB of real telemetry; without it the real-data tests skip
+datasets/fetch.sh          # about 15 MB of real telemetry; without it the real-data tests skip
 ruff check
 pytest
 python -m dwellwatch.convert   # after changing a rule: regenerate converted/ (make convert)

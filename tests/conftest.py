@@ -34,3 +34,8 @@ def process_event(command_line, image, *, original_file_name="", user="LAB\\jdoe
         "ParentImage": "C:\\Windows\\System32\\cmd.exe",
         "User": user,
     }
+
+
+def security_event(event_id, *, host="DC01.lab.local", time="2025-04-24T09:00:00.0000000Z", **fields):
+    """A planted Security event, flat, as load_events returns it; `fields` are its EventData."""
+    return {"EventID": str(event_id), "Channel": "Security", "Computer": host, "TimeCreated": time, **fields}

@@ -9,7 +9,7 @@ DwellWatch runs in two modes that share the same rules and the same Python code.
 
 ## Replay datasets
 
-`datasets/fetch.sh` fetches three files from one pinned commit of attack_data
+`datasets/fetch.sh` fetches seven files from one pinned commit of attack_data
 (`52c9d8a53167872293c9d0ca359b5166fb25e243`) and checks each one against a pinned SHA-256.
 Nothing it fetches is committed: `datasets/` is gitignored apart from the script.
 
@@ -18,6 +18,10 @@ Nothing it fetches is committed: `datasets/` is gitignored apart from the script
 | `T1490/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1490 tests 1 to 6 on a domain controller: vssadmin, wmic and PowerShell shadow-copy deletion, `wbadmin delete catalog`, bcdedit recovery tampering, `wbadmin delete systemstatebackup` | 285 Sysmon | Attack: every stage 5 rule must fire on its command |
 | `T1490/atomic_red_team/4688_xml_windows_security_delete_shadow.log` | The same shadow-copy deletion, seen by Security 4688 instead of Sysmon | 4 Security | Attack: the rules must work without Sysmon |
 | `T1003.003/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1003.003 (NTDS.dit theft): `vssadmin create shadow`, `wmic shadowcopy call create`, PowerShell's `Win32_ShadowCopy.Create()`, `ntdsutil ifm`, the test runner's own `-EncodedCommand` PowerShell, plus the host's ordinary background activity | 7,010 Sysmon | Control: no stage 5 rule may fire |
+| `T1098/windows_multiple_passwords_changed/windows_multiple_passwords_changed.log` | An administrator resetting 40 accounts' passwords on a domain controller, with the PowerShell that did it | 345 (133 Security) | Attack: one stage 1 reset signal per reset, each naming the reset account |
+| `T1098/account_manipulation/xml-windows-security.log` | Accounts created, enabled and reset (21 resets), and four group adds: three to Domain Admins, one of them an account adding itself, and one to a workstation's `None` group | 430 Security | Attack and control: the Domain Admins adds fire; the `None` add, and 400 other account events, do not |
+| `T1098/dnsadmins_member_added/windows-security.log` | An account added to DnsAdmins, whose members can make the DNS service load code | 228 (173 Security) | Attack: the one add fires |
+| `T1136.001/atomic_red_team/xml-windows-security.log` | Atomic Red Team T1136.001: a local account created and added to Administrators | 2 Security | Attack: the add fires; creating the account does not |
 
 **Why the control is attack data.** attack_data has no folder of benign Windows activity. The
 T1003.003 run is the next best thing, and arguably a harder test: it runs the same tools as
@@ -47,12 +51,12 @@ git -C datasets/attack_data lfs pull --include="T1490/...,T1490/...,T1003.003/..
 ```
 
 The commit fetch brings the whole tree as LFS pointer files, a few MB, and none of the 9 GB of
-content; `lfs pull --include` then downloads only the three files. It deliberately does not use
+content; `lfs pull --include` then downloads only the listed files. It deliberately does not use
 `--filter=blob:none`, because `git lfs pull` lists the tree with object sizes and would then
 fetch each of the repository's thousands of missing blobs one request at a time.
 
 Without git-lfs, or if the LFS download fails (some corporate proxies block it), the script
-downloads the same three files from GitHub's LFS media host instead:
+downloads the same files from GitHub's LFS media host instead:
 
 ```bash
 curl -fsSL -o <file> https://media.githubusercontent.com/media/splunk/attack_data/<commit>/<path>
@@ -97,6 +101,36 @@ What that run shows, and what it does not:
 
 `pytest` asserts all of the above. CI runs `datasets/fetch.sh` first and sets
 `DWELLWATCH_REQUIRE_DATASETS=1`, so a missing dataset fails the build instead of skipping.
+
+### Stage 1 on real data
+
+The four stage 1 files replay to 66 signals, the number `pytest` pins:
+
+- **Resets.** 61 resets, 61 signals, each naming the account that was reset rather than the
+  administrator who reset it, because the reset account is the one a caller now holds. The bulk
+  reset run also logs one 4738 ("user account changed") per reset, 40 of each, which is why
+  4738 has no rule of its own: it would count every reset twice.
+- **Group adds.** Five adds to privileged groups (three to Domain Admins, one to DnsAdmins, one
+  to a host's Administrators), five signals. One of the Domain Admins adds is `unpriv2` adding
+  itself. The add to a workstation's `None` group stays quiet.
+- **SIDs arrive as names here.** Splunk's export resolves `TargetSid` to a name
+  (`ATTACKRANGE\Domain Admins`), so in these files the rule matches on group names. On a raw
+  EVTX export the well-known SIDs match, which also covers domains whose groups have
+  non-English names.
+
+These files shaped the rules, so they show the rules work on real events, not how they
+generalise. They also hold little ordinary Security traffic (672 other Security events), so they
+cannot measure the false-positive rate on a real domain's Security log. The reset rule fires on
+every reset by design; telling a malicious reset from a routine one is correlation's job.
+
+**On data the rules were not written against**, the 392,824 events of the round below, which
+include 1,577 Security events from EVTX-ATTACK-SAMPLES, the stage 1 rules fired four times, all
+on attacks: a machine account's password reset in a noPac (CVE-2021-42287) run, a remote
+password reset over RPC after Zerologon, and Guest and Network Service each added to the local
+Administrators group. They are the only resets and group adds in that data, so this shows the
+rules catching attacks they were not written for, not how quiet they stay. The five 4738
+events it also holds (an ACL-abuse sample changing another user's attributes) record no password
+change, so no reset was missed there; they also show why a 4738 rule would be noisy.
 
 ### Tested on data the rules were not written against
 
@@ -161,11 +195,15 @@ traceback. Reading is now streamed, so the largest file (166 MB) replays in 22 M
    dictionary of System fields (`EventID`, `Channel`, `Computer`, `TimeCreated`) plus its
    EventData fields.
 2. **Normalise.** Security 4688 names things differently from Sysmon 1, so it gets the Sysmon
-   names that process_creation rules are written against: `NewProcessName` becomes `Image`,
-   `ParentProcessName` becomes `ParentImage`, and the account becomes `User`.
+   names that process_creation rules are written against: `NewProcessName` becomes `Image` and
+   `ParentProcessName` becomes `ParentImage`. Every Security event also gets a `User`, the account
+   correlation follows: the account acted on for a password reset or change (4723, 4724, 4738)
+   or a logon (4624, 4625), because that is the account the attacker now holds; for other events,
+   such as a group change, where the target is the group, the account that acted.
 3. **Gate by logsource.** A rule only sees the events its Sigma logsource covers. For
-   `process_creation` that is Sysmon event 1 and Security event 4688.
-4. **Match.** pySigma parses the rule, exactly as the converters will in Phase 2, and replay
+   `process_creation` that is Sysmon event 1 and Security event 4688; for `service: security`
+   it is every Security event, and the rule names its own EventIDs.
+4. **Match.** pySigma parses the rule, exactly as the converters do, and replay
    evaluates pySigma's condition tree: `and`, `or`, `not`, `1 of` / `all of`, and the field
    modifiers pySigma turns into wildcards or regular expressions (`contains`, `startswith`,
    `endswith`, `all`, `re`, `cased`, and `wide|base64offset` for encoded command lines), plus

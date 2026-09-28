@@ -1,0 +1,4 @@
+// Member Added To A Privileged Group
+// Generated from sigma/stage1_helpdesk/privileged_group_member_added.yml by dwellwatch.convert; do not edit.
+SecurityEvent
+| where (EventID in (4728, 4732, 4756)) and ((TargetSid endswith "-512" or TargetSid endswith "-518" or TargetSid endswith "-519" or TargetSid endswith "-526" or TargetSid endswith "-527") or (TargetSid in~ ("S-1-5-32-544", "S-1-5-32-548", "S-1-5-32-549", "S-1-5-32-551")) or (TargetUserName in~ ("Domain Admins", "Enterprise Admins", "Schema Admins", "Key Admins", "Enterprise Key Admins", "Administrators", "Account Operators", "Server Operators", "Backup Operators", "DnsAdmins")))

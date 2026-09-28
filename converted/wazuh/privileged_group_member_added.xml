@@ -1,0 +1,26 @@
+<!-- Member Added To A Privileged Group
+     Generated from sigma/stage1_helpdesk/privileged_group_member_added.yml (3803236b-8f7a-40e7-bd0f-5aa3312df6c6) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Security audit success -->
+  <rule id="101010" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID" type="pcre2">(?s)^(?:(?:4728$)|(?:4732$)|(?:4756$))</field>
+    <field name="win.eventdata.targetSid" type="pcre2">(?s)^(?:(?i:.*\-512$)|(?i:.*\-518$)|(?i:.*\-519$)|(?i:.*\-526$)|(?i:.*\-527$)|(?i:S\-1\-5\-32\-544$)|(?i:S\-1\-5\-32\-548$)|(?i:S\-1\-5\-32\-549$)|(?i:S\-1\-5\-32\-551$))</field>
+    <description>DwellWatch stage 1: Member Added To A Privileged Group</description>
+    <mitre>
+      <id>T1098</id>
+    </mitre>
+    <group>dwellwatch_stage1,</group>
+  </rule>
+  <!-- Security audit success -->
+  <rule id="101011" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID" type="pcre2">(?s)^(?:(?:4728$)|(?:4732$)|(?:4756$))</field>
+    <field name="win.eventdata.targetUserName" type="pcre2">(?s)^(?:(?i:Domain\ Admins$)|(?i:Enterprise\ Admins$)|(?i:Schema\ Admins$)|(?i:Key\ Admins$)|(?i:Enterprise\ Key\ Admins$)|(?i:Administrators$)|(?i:Account\ Operators$)|(?i:Server\ Operators$)|(?i:Backup\ Operators$)|(?i:DnsAdmins$))</field>
+    <description>DwellWatch stage 1: Member Added To A Privileged Group</description>
+    <mitre>
+      <id>T1098</id>
+    </mitre>
+    <group>dwellwatch_stage1,</group>
+  </rule>
+</group>

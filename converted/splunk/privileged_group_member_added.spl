@@ -1,0 +1,1 @@
+EventID IN (4728, 4732, 4756) TargetSid IN ("*-512", "*-518", "*-519", "*-526", "*-527") OR TargetSid IN ("S-1-5-32-544", "S-1-5-32-548", "S-1-5-32-549", "S-1-5-32-551") OR TargetUserName IN ("Domain Admins", "Enterprise Admins", "Schema Admins", "Key Admins", "Enterprise Key Admins", "Administrators", "Account Operators", "Server Operators", "Backup Operators", "DnsAdmins")

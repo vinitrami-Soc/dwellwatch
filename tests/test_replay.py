@@ -242,7 +242,7 @@ def test_base64_offset_finds_an_encoded_string_at_every_alignment(tmp_path):
 @pytest.mark.parametrize("kwargs, detection, reason", [
     ({}, "sel: {SourceIp|cidr: 10.0.0.0/8}\ncondition: sel", "SigmaCIDRExpression"),
     ({}, "keywords: [mimikatz]\ncondition: keywords", "keyword"),
-    ({"category": "process_access"}, "sel: {CommandLine: x}\ncondition: sel", "not mapped"),
+    ({"category": "dns_query"}, "sel: {QueryName: x}\ncondition: sel", "not mapped"),
     ({"tags": "attack.discovery"}, "sel: {CommandLine: x}\ncondition: sel", "technique tag"),
     ({"folder": "correlation"}, "sel: {CommandLine: x}\ncondition: sel", "stageN_"),
 ])

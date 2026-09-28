@@ -50,9 +50,12 @@ RULES_DIR = Path(__file__).resolve().parents[2] / "sigma"
 SYSMON = "Microsoft-Windows-Sysmon/Operational"
 SECURITY = "Security"
 
-# The recorded events each Sigma logsource covers, as (channel, event id) pairs.
-LOGSOURCES: dict[tuple[str | None, str | None], frozenset[tuple[str, int]]] = {
-    ("windows", "process_creation"): frozenset({(SYSMON, 1), (SECURITY, 4688)}),
+# The recorded events each Sigma logsource (product, category, service) covers, as (channel, event
+# id) pairs. An event id of None covers the whole channel: those rules name their EventIDs themselves.
+LogSource = tuple[str | None, str | None, str | None]
+LOGSOURCES: dict[LogSource, frozenset[tuple[str, int | None]]] = {
+    ("windows", "process_creation", None): frozenset({(SYSMON, 1), (SECURITY, 4688)}),
+    ("windows", None, "security"): frozenset({(SECURITY, None)}),
 }
 
 STAGE_FOLDER = re.compile(r"stage(\d)_")
@@ -74,9 +77,12 @@ class Rule:
     stage: Stage
     attack_technique: str
     severity: Severity
-    sources: frozenset[tuple[str, int]]
+    sources: frozenset[tuple[str, int | None]]
     matches: Matcher
     path: Path
+
+    def covers(self, channel: str, event_id: int | float | None) -> bool:
+        return (channel, event_id) in self.sources or (channel, None) in self.sources
 
 
 # --- rules ------------------------------------------------------------------------------------
@@ -97,8 +103,8 @@ def load_rule(path: Path) -> Rule:
         raise UnsupportedRule(f"{path}: needs an ATT&CK technique tag such as attack.t1490")
     if rule.id is None or rule.level is None:
         raise UnsupportedRule(f"{path}: needs an id and a level")
-    logsource = (rule.logsource.product, rule.logsource.category)
-    if rule.logsource.service or logsource not in LOGSOURCES:
+    logsource = (rule.logsource.product, rule.logsource.category, rule.logsource.service)
+    if logsource not in LOGSOURCES:
         raise UnsupportedRule(f"{path}: logsource {rule.logsource} is not mapped to recorded events yet")
 
     conditions = [_compile(condition.parsed, path) for condition in rule.detection.parsed_condition]
@@ -280,15 +286,27 @@ def _text(value: Any) -> str:
     return "" if value is None else str(value)
 
 
+# Security events whose target is the account the attacker now uses: the one whose password was
+# reset or changed, or that logged on. In the others (group changes, directory access) the target is
+# the group or object, so the account that matters is the one acting.
+TARGET_ACCOUNT_EVENTS = {"4624", "4625", "4723", "4724", "4738"}
+
+
 def normalise(event: Event) -> Event:
-    """Give Security 4688 the Sysmon field names that process_creation rules are written against."""
-    if event.get("Channel") != SECURITY or event.get("EventID") != "4688":
+    """Give every Security event a User, and 4688 the Sysmon names process_creation rules use."""
+    if event.get("Channel") != SECURITY:
         return event
     event = dict(event)
-    event.setdefault("Image", event.get("NewProcessName", ""))
-    event.setdefault("ParentImage", event.get("ParentProcessName", ""))
-    # The new process runs as the target account when there is one, otherwise as its creator.
-    user = _account(event, "Target") or _account(event, "Subject")
+    event_id = event.get("EventID")
+    if event_id == "4688":
+        event.setdefault("Image", event.get("NewProcessName", ""))
+        event.setdefault("ParentImage", event.get("ParentProcessName", ""))
+        # The new process runs as the target account when there is one, otherwise as its creator.
+        user = _account(event, "Target") or _account(event, "Subject")
+    elif event_id in TARGET_ACCOUNT_EVENTS:
+        user = _account(event, "Target")
+    else:
+        user = _account(event, "Subject")
     if user:
         event.setdefault("User", user)
     return event
@@ -331,9 +349,9 @@ def replay(events: Iterable[Event], rules: Iterable[Rule]) -> list[Signal]:
     rules = list(rules)
     signals = []
     for event in map(normalise, events):
-        source = (event.get("Channel", ""), _as_number(event.get("EventID", "")))
+        channel, event_id = event.get("Channel", ""), _as_number(event.get("EventID", ""))
         for rule in rules:
-            if source in rule.sources and rule.matches(event):
+            if rule.covers(channel, event_id) and rule.matches(event):
                 user = event.get("User", "")
                 signals.append(Signal(
                     stage=rule.stage,
