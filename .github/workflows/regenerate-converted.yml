@@ -3,7 +3,8 @@
 name: Regenerate converted (temporary)
 
 on:
-  workflow_dispatch:
+  push:
+    branches: ["claude/phase2-conversion"]
 
 permissions:
   contents: write
