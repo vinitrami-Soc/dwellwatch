@@ -1,0 +1,72 @@
+<!-- Process Started On Another Host With WMI
+     Generated from sigma/stage4_lateral_movement/wmi_remote_process.yml (d34be004-8070-4c61-9845-59223e1918ec) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="104010" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}wmic\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*/node:))(?=(?i:.*process\ call\ create))</field>
+    <description>DwellWatch stage 4: Process Started On Another Host With WMI</description>
+    <mitre>
+      <id>T1047</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="104011" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:wmic\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*/node:))(?=(?i:.*process\ call\ create))</field>
+    <description>DwellWatch stage 4: Process Started On Another Host With WMI</description>
+    <mitre>
+      <id>T1047</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="104012" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}powershell\.exe$)|(?i:.*\\{1,2}pwsh\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*Win32_Process))(?=(?i:.*\-ComputerName))(?=(?:(?i:.*Invoke\-WmiMethod)|(?i:.*Invoke\-CimMethod)))</field>
+    <description>DwellWatch stage 4: Process Started On Another Host With WMI</description>
+    <mitre>
+      <id>T1047</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="104013" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?:(?i:PowerShell\.EXE$)|(?i:pwsh\.dll$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*Win32_Process))(?=(?i:.*\-ComputerName))(?=(?:(?i:.*Invoke\-WmiMethod)|(?i:.*Invoke\-CimMethod)))</field>
+    <description>DwellWatch stage 4: Process Started On Another Host With WMI</description>
+    <mitre>
+      <id>T1047</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="104014" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}wmic\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*/node:))(?=(?i:.*process\ call\ create))</field>
+    <description>DwellWatch stage 4: Process Started On Another Host With WMI</description>
+    <mitre>
+      <id>T1047</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="104015" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}powershell\.exe$)|(?i:.*\\{1,2}pwsh\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*Win32_Process))(?=(?i:.*\-ComputerName))(?=(?:(?i:.*Invoke\-WmiMethod)|(?i:.*Invoke\-CimMethod)))</field>
+    <description>DwellWatch stage 4: Process Started On Another Host With WMI</description>
+    <mitre>
+      <id>T1047</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+</group>

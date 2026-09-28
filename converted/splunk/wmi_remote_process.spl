@@ -1,0 +1,1 @@
+(Image="*\\wmic.exe" OR OriginalFileName="wmic.exe" CommandLine="*/node:*" CommandLine="*process call create*") OR (Image IN ("*\\powershell.exe", "*\\pwsh.exe") OR OriginalFileName IN ("PowerShell.EXE", "pwsh.dll") CommandLine="*Win32_Process*" CommandLine="*-ComputerName*" CommandLine IN ("*Invoke-WmiMethod*", "*Invoke-CimMethod*"))

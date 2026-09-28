@@ -1,0 +1,16 @@
+<!-- Logon With Credentials Injected For Another Account
+     Generated from sigma/stage4_lateral_movement/pass_the_hash_logon.yml (d1b0ef25-1037-4214-9279-6a90cd64d13f) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Security audit success -->
+  <rule id="104030" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID" type="pcre2">(?s)^(?:4624$)</field>
+    <field name="win.eventdata.logonType" type="pcre2">(?s)^(?:9$)</field>
+    <field name="win.eventdata.logonProcessName" type="pcre2">(?s)^(?i:seclogo$)</field>
+    <description>DwellWatch stage 4: Logon With Credentials Injected For Another Account</description>
+    <mitre>
+      <id>T1550.002</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+</group>

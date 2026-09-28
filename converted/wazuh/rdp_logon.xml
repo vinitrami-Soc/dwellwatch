@@ -1,0 +1,15 @@
+<!-- Remote Desktop Logon
+     Generated from sigma/stage4_lateral_movement/rdp_logon.yml (11cf8458-a1dd-4f0e-bc62-a8599d84ae9e) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Security audit success -->
+  <rule id="104020" level="6">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID" type="pcre2">(?s)^(?:4624$)</field>
+    <field name="win.eventdata.logonType" type="pcre2">(?s)^(?:10$)</field>
+    <description>DwellWatch stage 4: Remote Desktop Logon</description>
+    <mitre>
+      <id>T1021.001</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+</group>

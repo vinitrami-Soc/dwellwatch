@@ -345,12 +345,24 @@ def _wazuh_value(value: Any, path: Path) -> str:
     raise UnsupportedForTarget(path, "wazuh", f"{type(value).__name__} values are not converted yet")
 
 
+BACKSLASH_RUNS = re.compile(r"(\\+)|(.)", re.DOTALL)
+
+
 def _wazuh_part(part: Any) -> str:
     if part == SpecialChars.WILDCARD_MULTI:
         return ".*"
     if part == SpecialChars.WILDCARD_SINGLE:
         return "."
-    return "".join("\\\\{1,2}" if char == "\\" else '\\\\?"' if char == '"' else re.escape(char) for char in part)
+    pieces = []
+    for run, char in BACKSLASH_RUNS.findall(part):
+        if run:
+            # A lone backslash matches one or two, so the pattern holds whether or not the value was
+            # escaped. A run can only be told apart in the escaped form Wazuh stores: \\ arrives as
+            # four backslashes, and "one or two" for each would also match a single escaped one.
+            pieces.append("\\\\{1,2}" if len(run) == 1 else f"\\\\{{{2 * len(run)}}}")
+        else:
+            pieces.append('\\\\?"' if char == '"' else re.escape(char))
+    return "".join(pieces)
 
 
 # --- all rules --------------------------------------------------------------------------------

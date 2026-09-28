@@ -1,0 +1,28 @@
+title: Remote Desktop Logon
+id: 11cf8458-a1dd-4f0e-bc62-a8599d84ae9e
+status: experimental
+description: |
+  Detects an account logging on over Remote Desktop (Security 4624, logon type 10). Every RDP
+  logon matches, so on its own this is routine; it matters when the account was just reset at the
+  service desk or has shown other stages, which is what correlation looks for. The signal names
+  the account that logged on. Logons from 127.0.0.1 are kept: an RDP session tunnelled back to
+  the machine itself arrives that way. DwellWatch stage 4 (lateral movement).
+references:
+  - https://attack.mitre.org/techniques/T1021/001/
+  - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4624
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.lateral-movement
+  - attack.t1021.001
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4624
+    LogonType: 10
+  condition: selection
+falsepositives:
+  - Every legitimate RDP logon. This rule is for correlation, not for paging anyone.
+level: low

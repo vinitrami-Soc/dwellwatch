@@ -1,0 +1,4 @@
+// Logon With Credentials Injected For Another Account
+// Generated from sigma/stage4_lateral_movement/pass_the_hash_logon.yml by dwellwatch.convert; do not edit.
+SecurityEvent
+| where EventID == 4624 and LogonType == 9 and LogonProcessName =~ "seclogo"

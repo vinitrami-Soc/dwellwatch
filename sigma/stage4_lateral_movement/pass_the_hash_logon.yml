@@ -1,0 +1,30 @@
+title: Logon With Credentials Injected For Another Account
+id: d1b0ef25-1037-4214-9279-6a90cd64d13f
+status: experimental
+description: |
+  Detects the logon Windows records on the attacker's machine when a stolen hash or ticket is put
+  to use: mimikatz's sekurlsa::pth and similar tools start a process with new network credentials,
+  which logs Security 4624 with logon type 9 (NewCredentials) through the seclogo logon process.
+  `runas /netonly` produces the same event, legitimately. DwellWatch stage 4 (lateral movement).
+references:
+  - https://attack.mitre.org/techniques/T1550/002/
+  - https://attack.mitre.org/techniques/T1550/003/
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.lateral-movement
+  - attack.defense-evasion
+  - attack.t1550.002
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4624
+    LogonType: 9
+    LogonProcessName: 'seclogo'
+  condition: selection
+falsepositives:
+  - Administrators using `runas /netonly` to reach another domain or a server with separate
+    credentials.
+level: medium

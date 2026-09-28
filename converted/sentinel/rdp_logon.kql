@@ -1,0 +1,4 @@
+// Remote Desktop Logon
+// Generated from sigma/stage4_lateral_movement/rdp_logon.yml by dwellwatch.convert; do not edit.
+SecurityEvent
+| where EventID == 4624 and LogonType == 10

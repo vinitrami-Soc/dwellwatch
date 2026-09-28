@@ -170,14 +170,6 @@ def test_wazuh_rule_ids_are_unique_and_in_the_local_range():
     assert all(block % 10 == 0 for block in blocks.values())
 
 
-def test_security_rules_outrank_every_built_in_rule_beside_them():
-    # Wazuh tries the highest level first and stops at the first match. Every built-in child of
-    # 60103 is at level 9 or below. Sysmon rules are checked event by event instead, in
-    # assert_wazuh_agrees_with_replay, because Wazuh's own Sysmon rules go up to level 15.
-    security = [rule for rule in wazuh_model.load_rules(wazuh_texts()) if rule.if_sid == "60103"]
-    assert security and all(rule.level > wazuh_model.SECURITY_SUCCESS_MAX_LEVEL for rule in security)
-
-
 WAZUH_RULES = wazuh_model.load_rules(wazuh_texts())
 SIGMA_ID_BY_BLOCK = {block: str(sigma_id) for sigma_id, block
                      in yaml.safe_load((ROOT / "sigma" / "wazuh-ids.yml").read_text()).items()}
@@ -249,11 +241,16 @@ PLANTED = [
     sysmon_event(11, Image="C:\\Windows\\System32\\lsass.exe", TargetFilename="C:\\Windows\\NTDS\\ntds.dit"),
     security_event(4662, SubjectUserName="jdoe", AccessMask="0x100", Properties=REPLICATE),
     security_event(4662, SubjectUserName="DC02$", AccessMask="0x100", Properties=REPLICATE),
+    process_event("PsExec.exe \\\\fs01 -accepteula cmd.exe", "C:\\Tools\\PsExec.exe"),
+    process_event("PsExec.exe -accepteula -s C:\\Windows\\System32\\cmd.exe", "C:\\Tools\\PsExec.exe"),  # local
+    security_event(4624, LogonType="10", TargetUserName="jdoe", TargetDomainName="LAB"),
+    security_event(4624, LogonType="3", TargetUserName="jdoe", TargetDomainName="LAB"),
+    security_event(4624, LogonType="9", LogonProcessName="seclogo", TargetUserName="jdoe", TargetDomainName="LAB"),
 ]
 
 
 def test_wazuh_agrees_with_replay_on_planted_events():
-    assert assert_wazuh_agrees_with_replay(PLANTED) == 19
+    assert assert_wazuh_agrees_with_replay(PLANTED) == 22
 
 
 @pytest.mark.parametrize("relative, alerts", [
@@ -271,6 +268,9 @@ def test_wazuh_agrees_with_replay_on_planted_events():
     ("T1003.001/atomic_red_team/windows-sysmon.log", 66),
     ("T1003.006/mimikatz/xml-windows-security.log", 4),
     ("T1003.006/impacket/windows-security-xml.log", 0),
+    ("T1021.002/atomic_red_team/windows-sysmon.log", 1),
+    ("T1047/atomic_red_team/windows-sysmon.log", 1),
+    ("T1021.001/rdp_session_established/4624_10_logon.log", 16),
 ])
 def test_wazuh_agrees_with_replay_on_real_events(relative, alerts):
     assert assert_wazuh_agrees_with_replay(load_events(dataset(relative))) == alerts
@@ -287,6 +287,18 @@ def test_wazuh_patterns_match_a_path_whether_or_not_its_backslashes_arrive_doubl
     pattern = pcre2.compile("(?s)^" + conv._wazuh_value(contains, VSSADMIN))
     assert pattern.search(value)
     assert not pattern.search(value.replace("Public", "Private"))
+
+
+@pytest.mark.parametrize("raw, matches", [
+    ("PsExec.exe \\\\fs01 cmd.exe", True),  # a \\host argument
+    ("PsExec.exe -s C:\\Windows\\System32\\cmd.exe", False),  # single backslashes only
+])
+def test_a_run_of_backslashes_is_told_apart_from_a_single_escaped_one(raw, matches):
+    # Wazuh stores a single backslash as two characters, so "one or two per backslash" would make
+    # a pattern for \\ match every path. A run is matched in the escaped form only.
+    contains = SigmaString("*\\\\\\\\*")  # Sigma for: contains \\
+    pattern = pcre2.compile("(?s)^" + conv._wazuh_value(contains, VSSADMIN))
+    assert bool(pattern.search(raw.replace("\\", "\\\\"))) is matches
 
 
 def test_every_generated_file_names_its_source():

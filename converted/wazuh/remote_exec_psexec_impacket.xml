@@ -1,0 +1,98 @@
+<!-- Remote Execution Through PsExec Or Impacket
+     Generated from sigma/stage4_lateral_movement/remote_exec_psexec_impacket.yml (de9b13e4-8d78-4dda-b30e-dffb0dbf5342) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="104000" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}PsExec\.exe$)|(?i:.*\\{1,2}PsExec64\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*\\{4})</field>
+    <description>DwellWatch stage 4: Remote Execution Through PsExec Or Impacket</description>
+    <mitre>
+      <id>T1021.002</id>
+      <id>T1569.002</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="104001" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:psexec\.c$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*\\{4})</field>
+    <description>DwellWatch stage 4: Remote Execution Through PsExec Or Impacket</description>
+    <mitre>
+      <id>T1021.002</id>
+      <id>T1569.002</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="104002" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}PSEXESVC\.exe$)</field>
+    <description>DwellWatch stage 4: Remote Execution Through PsExec Or Impacket</description>
+    <mitre>
+      <id>T1021.002</id>
+      <id>T1569.002</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="104003" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:psexesvc\.exe$)</field>
+    <description>DwellWatch stage 4: Remote Execution Through PsExec Or Impacket</description>
+    <mitre>
+      <id>T1021.002</id>
+      <id>T1569.002</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="104004" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*&gt;\ \\{4}127\.0\.0\.1\\{1,2})</field>
+    <description>DwellWatch stage 4: Remote Execution Through PsExec Or Impacket</description>
+    <mitre>
+      <id>T1021.002</id>
+      <id>T1569.002</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="104005" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}PsExec\.exe$)|(?i:.*\\{1,2}PsExec64\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*\\{4})</field>
+    <description>DwellWatch stage 4: Remote Execution Through PsExec Or Impacket</description>
+    <mitre>
+      <id>T1021.002</id>
+      <id>T1569.002</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="104006" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}PSEXESVC\.exe$)</field>
+    <description>DwellWatch stage 4: Remote Execution Through PsExec Or Impacket</description>
+    <mitre>
+      <id>T1021.002</id>
+      <id>T1569.002</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="104007" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*&gt;\ \\{4}127\.0\.0\.1\\{1,2})</field>
+    <description>DwellWatch stage 4: Remote Execution Through PsExec Or Impacket</description>
+    <mitre>
+      <id>T1021.002</id>
+      <id>T1569.002</id>
+    </mitre>
+    <group>dwellwatch_stage4,</group>
+  </rule>
+</group>

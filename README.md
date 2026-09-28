@@ -16,9 +16,9 @@
 
 > **Status: in progress.** Phases 0 to 2 are done: the replay engine and six rules for stage 5
 > (backup destruction), tested on real Atomic Red Team and ransomware telemetry and converted for
-> Wazuh, Splunk and Sentinel. Phase 3 is under way: stages 1 (help-desk reset abuse), 2 (remote
-> tooling and discovery) and 3 (credential theft) are done; stages 4 and 6, correlation and the
-> metric are still to come. See the [roadmap](#roadmap).
+> Wazuh, Splunk and Sentinel. Phase 3 is under way: stages 1 to 4 (help-desk reset abuse, remote
+> tooling and discovery, credential theft, lateral movement) are done; stage 6, correlation and
+> the metric are still to come. See the [roadmap](#roadmap).
 
 **Headline metric:** _not measured yet._ Once the chain has been emulated, this line will read
 "First alert fired N minutes before encryption in X of Y emulated runs", with the denominator and
@@ -52,7 +52,7 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 1 | Help-desk reset abuse | Impersonates an employee, gets a password or MFA reset | Windows Security 4724 (password reset); group adds 4728, 4732, 4756. MFA resets are in the identity provider's logs, not Windows' | T1078, T1098, T1556 |
 | 2 | Remote tooling and discovery | Installs remote access, runs discovery commands | Sysmon 1 or Security 4688 (process creation) | T1219, T1087, T1018, T1482 |
 | 3 | Credential theft | Copies the AD database or reads LSASS | Sysmon 10 (access to lsass), 11 (dump files, NTDS.dit copies); process creation for dump and copy commands; Security 4662 with replication rights | T1003.001, T1003.002, T1003.003, T1003.006 |
-| 4 | Lateral movement | Moves host to host with the stolen account | Security 4624 logon types 3 and 10; Sysmon 1 for psexec and wmic | T1021, T1570 |
+| 4 | Lateral movement | Moves host to host with the stolen account | Security 4624 logon types 9 and 10; process creation for PsExec, Impacket and remote WMI | T1021.001, T1021.002, T1047, T1550.002 |
 | 5 | Backup destruction | Deletes shadow copies and backups before encrypting | Sysmon 1: vssadmin, wbadmin, bcdedit, diskshadow, wmic, reagentc | T1490 |
 | 6 | Encryption (backstop) | Mass file changes, ransom notes | Wazuh FIM burst; canary file modification | T1486 |
 
@@ -72,6 +72,10 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 3 | [Credential Hives Saved Or Copied](sigma/stage3_credential_theft/registry_hives_copied.yml) | `reg save` of SAM, SYSTEM or SECURITY, or the hives read out of a shadow copy |
 | 3 | [Directory Replication Requested By A User Account](sigma/stage3_credential_theft/dcsync_by_non_dc_account.yml) | DCSync from any account that is not a domain controller's (Security 4662) |
 | 3 | [LSASS Dump Or AD Database Written To Disk](sigma/stage3_credential_theft/credential_dump_file_written.yml) | an LSASS dump file, or NTDS.dit outside its home folder (Sysmon 11) |
+| 4 | [Remote Execution Through PsExec Or Impacket](sigma/stage4_lateral_movement/remote_exec_psexec_impacket.yml) | PsExec to another host, PSEXESVC starting, Impacket-style output written back through `\\127.0.0.1\` |
+| 4 | [Process Started On Another Host With WMI](sigma/stage4_lateral_movement/wmi_remote_process.yml) | `wmic /node: process call create`, `Invoke-WmiMethod`/`Invoke-CimMethod` with `-ComputerName` |
+| 4 | [Remote Desktop Logon](sigma/stage4_lateral_movement/rdp_logon.yml) | every RDP logon (4624 type 10); a weak signal for correlation |
+| 4 | [Logon With Credentials Injected For Another Account](sigma/stage4_lateral_movement/pass_the_hash_logon.yml) | the type 9 `seclogo` logon that pass-the-hash leaves on the attacker's machine |
 | 5 | [Shadow Copies Deleted With vssadmin](sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml) | `vssadmin delete shadows` |
 | 5 | [Backup Catalogue Deleted With wbadmin](sigma/stage5_backup_destruction/wbadmin_delete_catalog.yml) | `wbadmin delete catalog` |
 | 5 | [Windows Recovery Disabled With bcdedit](sigma/stage5_backup_destruction/bcdedit_recovery_disabled.yml) | `bcdedit ... recoveryenabled no`, `bootstatuspolicy ignoreallfailures` |
@@ -97,6 +101,11 @@ accesses stay quiet, every step of an NTDS.dit theft, and mimikatz's DCSync. On 
 not written against, their first version caught 13 of 15 credential-theft samples, with one false
 positive (Process Monitor opening LSASS). rdrleakdiag's dump is now covered; MalSeclogon, and
 DCSync run as a domain controller's machine account, are known gaps.
+
+Stage 4 is deliberately narrow, and its unseen-data result says so plainly. Its rules caught
+PsExec, Impacket's wmiexec and dcomexec, mimikatz's pass-the-hash and RDP tunnelling in
+EVTX-ATTACK-SAMPLES, but not WinRM, PowerShell remoting, SharpRDP, remote services or tasks,
+DCOM or target-side WMI. Correlation is what connects such movement to the stages around it.
 
 For stage 5, the Atomic Red Team T1490 run from attack_data (285 events) raises exactly
 one alert per targeted command, 6 in all, and none for the `cmd.exe` processes that launched them.
@@ -154,7 +163,7 @@ express, and the converter problems found on the way, are in the
 - [x] **Phase 0:** repository scaffold, data model, CI
 - [x] **Phase 1:** replay engine and the first detections (stage 5, backup destruction)
 - [x] **Phase 2:** conversion to Wazuh, SPL and KQL
-- [ ] **Phase 3:** rules for stages 1 to 4 and 6 (stages 1 to 3 done)
+- [ ] **Phase 3:** rules for stages 1 to 4 and 6 (stages 1 to 4 done)
 - [ ] **Phase 4:** the correlation engine
 - [ ] **Phase 5:** the dwell-time metric
 - [ ] **Phase 6:** IntelPulse webhook integration
@@ -177,7 +186,7 @@ docs/             lab architecture, threat model, detection catalogue, method
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-datasets/fetch.sh          # about 41 MB of real telemetry; without it the real-data tests skip
+datasets/fetch.sh          # about 53 MB of real telemetry; without it the real-data tests skip
 ruff check
 pytest
 python -m dwellwatch.convert   # after changing a rule: regenerate converted/ (make convert)

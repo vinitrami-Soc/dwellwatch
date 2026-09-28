@@ -1,0 +1,4 @@
+// Remote Execution Through PsExec Or Impacket
+// Generated from sigma/stage4_lateral_movement/remote_exec_psexec_impacket.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where (((TargetProcessName endswith "\\PsExec.exe" or TargetProcessName endswith "\\PsExec64.exe") or TargetProcessFileOriginalName =~ "psexec.c") and TargetProcessCommandLine contains "\\\\") or (TargetProcessName endswith "\\PSEXESVC.exe" or TargetProcessFileOriginalName =~ "psexesvc.exe") or TargetProcessCommandLine contains "> \\\\127.0.0.1\\"

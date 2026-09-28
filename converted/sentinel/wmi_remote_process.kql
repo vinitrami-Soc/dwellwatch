@@ -1,0 +1,4 @@
+// Process Started On Another Host With WMI
+// Generated from sigma/stage4_lateral_movement/wmi_remote_process.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where ((TargetProcessName endswith "\\wmic.exe" or TargetProcessFileOriginalName =~ "wmic.exe") and (TargetProcessCommandLine contains "/node:" and TargetProcessCommandLine contains "process call create")) or (((TargetProcessName endswith "\\powershell.exe" or TargetProcessName endswith "\\pwsh.exe") or (TargetProcessFileOriginalName in~ ("PowerShell.EXE", "pwsh.dll"))) and (TargetProcessCommandLine contains "Win32_Process" and TargetProcessCommandLine contains "-ComputerName") and (TargetProcessCommandLine contains "Invoke-WmiMethod" or TargetProcessCommandLine contains "Invoke-CimMethod"))

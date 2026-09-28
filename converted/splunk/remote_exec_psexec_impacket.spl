@@ -1,0 +1,1 @@
+(Image IN ("*\\PsExec.exe", "*\\PsExec64.exe") OR OriginalFileName="psexec.c" CommandLine="*\\\\*") OR Image="*\\PSEXESVC.exe" OR OriginalFileName="psexesvc.exe" OR CommandLine="*> \\\\127.0.0.1\\*"

@@ -22,6 +22,12 @@ e9e873d7-6404-43cb-9330-1d5a84db019c: 103010 # lsass_dump_command
 d99bbf80-ba98-44e0-ba68-19692fbae605: 103040 # credential_dump_file_written
 034fa389-f3cb-404d-8db3-8db154efd2a8: 103050 # registry_hives_copied
 
+# stage 4: lateral movement
+de9b13e4-8d78-4dda-b30e-dffb0dbf5342: 104000 # remote_exec_psexec_impacket
+d34be004-8070-4c61-9845-59223e1918ec: 104010 # wmi_remote_process
+11cf8458-a1dd-4f0e-bc62-a8599d84ae9e: 104020 # rdp_logon
+d1b0ef25-1037-4214-9279-6a90cd64d13f: 104030 # pass_the_hash_logon
+
 # stage 5: backup destruction
 b4a9f257-7282-4323-a97f-9560d2fdccaa: 105000 # vssadmin_shadow_delete
 529b5849-1e91-435b-8448-4804d93ca54e: 105010 # wbadmin_delete_catalog

@@ -84,8 +84,30 @@ def fires(rule, fields):
 
 # --- Wazuh's own rules beside DwellWatch's ----------------------------------------------------
 
-# Every child of rule 60103 in Wazuh 4.14.8 is at level 9 or below (60115, account locked out).
-SECURITY_SUCCESS_MAX_LEVEL = 9
+# Every rule under 60103 (successful Security events) in Wazuh 4.14.8, with its level and the event
+# IDs it matches (0580-win-security_rules.xml and 0955-WEF-baseline_rules.xml). All of them test
+# the event ID, most of them nothing else, so matching the ID is enough to say one could match.
+SECURITY_SUCCESS_RIVALS = [
+    (60115, 9, {"644", "4740"}),
+    (60109, 8, {"624", "626", "4720", "4722"}),
+    (60110, 8, {"628", "642", "685", "4738", "4781"}),
+    (60111, 8, {"630", "629", "4725", "4726"}),
+    (60112, 8, {"612", "643", "4719", "4907", "4912"}),
+    (60114, 8, {"640"}),
+    (60208, 8, {"4646"}), (60211, 8, {"4983", "4984"}), (60213, 8, {"4961", "4962"}), (60214, 8, {"4963"}),
+    (60219, 8, {"5453"}), (60224, 8, {"4710"}), (60227, 8, {"6416"}),
+    (60116, 7, {"513", "4609"}), (60216, 7, {"4976"}), (60217, 7, {"4977"}), (60218, 7, {"4978"}),
+    (60113, 5, {"4728", "4729", "4732", "4733", "4735", "4737", "4755", "4756", "4757", "4764", "4766",
+                "4745", "4746", "4747", "4750", "4751", "4752", "4760", "4761", "4762"}),
+    (60121, 5, {"4741", "4742", "4743"}), (60132, 5, {"520", "4616"}), (60133, 5, {"671", "4767"}),
+    (60138, 5, {"4727", "4731", "4754", "4744", "4749", "4759"}),
+    (60139, 5, {"4730", "4734", "4758", "4748", "4753", "4763"}),
+    (60212, 4, {"4960"}), (60215, 4, {"4965"}), (60228, 4, {"4698"}), (60229, 4, {"5136"}),
+    (60230, 4, {"5137"}), (60231, 4, {"5141"}),
+    (60106, 3, {"528", "540", "673", "4624", "4769"}), (60108, 3, {"682", "683", "4778", "4779"}),
+    (60136, 3, {"4608"}), (60137, 3, {"538", "551", "4634", "4647"}),
+    (67017, 3, {"5140"}), (67025, 3, {"5142"}), (67026, 3, {"5144"}), (67027, 3, {"4688"}), (67028, 3, {"4672"}),
+]
 
 
 def _name(path):
@@ -164,7 +186,8 @@ RIVALS = {
 def rivals(rule, event):
     """The built-in rules that Wazuh would try before `rule` and that could match `event`."""
     if rule.if_sid == "60103":
-        return [] if rule.level > SECURITY_SUCCESS_MAX_LEVEL else ["a child of 60103"]
+        return [rival for rival, level, event_ids in SECURITY_SUCCESS_RIVALS
+                if level >= rule.level and event.get("EventID") in event_ids]
     if rule.if_group not in RIVALS:
         raise ValueError(f"rule {rule.id} has a parent the model does not know")
     return [rival for rival, level, could_match in RIVALS[rule.if_group]

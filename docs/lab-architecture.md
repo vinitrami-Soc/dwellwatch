@@ -9,7 +9,7 @@ DwellWatch runs in two modes that share the same rules and the same Python code.
 
 ## Replay datasets
 
-`datasets/fetch.sh` fetches fourteen files from one pinned commit of attack_data
+`datasets/fetch.sh` fetches seventeen files from one pinned commit of attack_data
 (`52c9d8a53167872293c9d0ca359b5166fb25e243`) and checks each one against a pinned SHA-256.
 Nothing it fetches is committed: `datasets/` is gitignored apart from the script.
 
@@ -21,6 +21,9 @@ Nothing it fetches is committed: `datasets/` is gitignored apart from the script
 | `T1003.001/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1003.001: LSASS dumped with procdump (and a renamed copy), comsvcs.dll's MiniDump, Dumpert, Task Manager and a mimikatz-like tool, with the host's ordinary LSASS access around them | 7,960 Sysmon (6,909 of them event 10) | Attack and control: every dumping tool fires; svchost, csrss, wininit, WMI and PowerShell opening LSASS do not |
 | `T1003.006/mimikatz/xml-windows-security.log` | DCSync with mimikatz from a user account | 11 Security | Attack: each replication request fires |
 | `T1003.006/impacket/windows-security-xml.log` | DCSync with Impacket's secretsdump, run as the domain controller's machine account | 7 Security | Known blind spot: nothing fires, and the test pins that |
+| `T1021.002/atomic_red_team/windows-sysmon.log` | PsExec run against `\\localhost`, and PsExec run locally with `-s` to save a registry key as SYSTEM | 10 Sysmon | Attack and control: the remote PsExec fires; the local one does not |
+| `T1047/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1047: wmic queries, `wmic /node: ... process call create`, local `wmic process call create`, plus a host's background activity | 6,571 Sysmon | Attack and control: only the process creation on a node fires |
+| `T1021.001/rdp_session_established/4624_10_logon.log` | RDP logons to two domain controllers | 16 Security | Attack: every RDP logon fires and names its account |
 | `T1098/windows_multiple_passwords_changed/windows_multiple_passwords_changed.log` | An administrator resetting 40 accounts' passwords on a domain controller, with the PowerShell that did it | 345 (133 Security) | Attack: one stage 1 reset signal per reset, each naming the reset account |
 | `T1098/account_manipulation/xml-windows-security.log` | Accounts created, enabled and reset (21 resets), and four group adds: three to Domain Admins, one of them an account adding itself, and one to a workstation's `None` group | 430 Security | Attack and control: the Domain Admins adds fire; the `None` add, and 400 other account events, do not |
 | `T1098/dnsadmins_member_added/windows-security.log` | An account added to DnsAdmins, whose members can make the DNS service load code | 228 (173 Security) | Attack: the one add fires |
@@ -217,6 +220,35 @@ necessarily reading credentials. Stayed quiet, correctly: 1,672 ordinary LSASS a
 ransomware recordings (svchost, WMI, an EDR agent with `0x40`), domain controllers replicating as
 `DC1$`, WerFault handling other processes' crashes, and commands that never ran because the tool
 was not on the host (`procdump`, `ntdsutil` in the Panache run).
+
+### Stage 4 on real data
+
+attack_data has little lateral movement in a format replay reads (its pass-the-hash run is in
+Splunk's plain-text export), so stage 4 leans on planted events and the unseen round. The three
+pinned files: PsExec against `\\localhost` fires once, and the same run's local `PsExec -s`
+stays quiet; `wmic /node:"127.0.0.1" process call create` fires once, and the run's local
+`wmic process call create`, `/node:` queries and process deletion stay quiet; all 16 RDP logons
+fire, each naming the account that logged on.
+
+**On data the rules were not written against**, the first version of the stage 4 rules caught:
+PsExec's service starting on a target, Impacket's wmiexec and dcomexec (three commands each),
+mimikatz's pass-the-hash on the machine it ran from, and both RDP-tunnelling samples (RDP from
+127.0.0.1). What else fired: PSEXESVC for a local `psexec -s` used to get SYSTEM (twice), and the
+pass-the-hash rule on three other attacks that start processes with injected credentials (token
+duplication and manipulation, MalSeclogon). Those are attacks, but not lateral movement. One
+false positive: `wmic /node:localhost shadowcopy call create`, which makes a shadow copy; the
+rule now requires `process call create`. One miss that was the same technique in a different
+spelling: smbmap writing its output to `\\127.0.0.1\C$\<random>` rather than Impacket's names;
+the rule now matches any output written back through `\\127.0.0.1\`. Both fixes are regression
+checks from here on.
+
+Missed, and left as documented gaps: WinRM and PowerShell remoting (the Clop, `ransomware_ttp`
+and T1490 recordings hold about 140 WinRM-started processes running the same few encoded
+PowerShell commands, which look like the lab's own provisioning, not the attack; a WinRM rule
+would fire on all of them), SharpRDP, a remote scheduled task, services
+installed remotely (System 7045), share access (5145), explicit-credential logons (4648), DCOM,
+processes WMI starts on the target (Conti's Cobalt Strike beacon among them), and a local
+pass-the-hash seen only as an NTLM network logon.
 
 ### Tested on data the rules were not written against
 

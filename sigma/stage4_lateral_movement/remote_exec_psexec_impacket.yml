@@ -1,0 +1,46 @@
+title: Remote Execution Through PsExec Or Impacket
+id: de9b13e4-8d78-4dda-b30e-dffb0dbf5342
+status: experimental
+description: |
+  Detects commands run on another host through the Windows service control manager and admin
+  shares, the way ransomware crews spread: PsExec pointed at a remote host on the machine it runs
+  from, PsExec's service (PSEXESVC) starting on the machine it reaches, and the output
+  redirection that Impacket's wmiexec, smbexec and dcomexec, and tools built on them such as
+  smbmap, leave on the target: the command's output written back through an admin share of the
+  machine itself (`> \\127.0.0.1\ADMIN$\__...`, `^> \\127.0.0.1\C$\__output`). PSEXESVC also
+  starts for a local `psexec -s`, used to get SYSTEM rather than to move. DwellWatch stage 4
+  (lateral movement).
+references:
+  - https://attack.mitre.org/techniques/T1021/002/
+  - https://attack.mitre.org/techniques/T1569/002/
+  - https://github.com/fortra/impacket
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.lateral-movement
+  - attack.t1021.002
+  - attack.t1569.002
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_psexec_binary:
+    - Image|endswith:
+        - '\PsExec.exe'
+        - '\PsExec64.exe'
+    - OriginalFileName: 'psexec.c'
+  selection_psexec_remote:
+    CommandLine|contains: '\\\\' # a \\host argument; PsExec without one runs locally
+  selection_psexec_service:
+    - Image|endswith: '\PSEXESVC.exe'
+    - OriginalFileName: 'psexesvc.exe'
+  selection_impacket_output:
+    CommandLine|contains: '> \\\\127.0.0.1\' # output redirected to an admin share of the host itself
+  condition: >-
+    (selection_psexec_binary and selection_psexec_remote)
+    or selection_psexec_service
+    or selection_impacket_output
+falsepositives:
+  - Administrators who use PsExec to run commands on servers. It is common in some IT teams;
+    allow their accounts or management hosts if so.
+level: high

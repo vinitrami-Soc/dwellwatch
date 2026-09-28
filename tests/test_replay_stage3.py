@@ -146,10 +146,10 @@ def test_sysmon_10_names_the_account_reaching_in_when_sysmon_records_it():
 
 
 def by_rule_and_process(relative):
-    events = list(load_events(dataset(relative)))
+    events, rules = list(load_events(dataset(relative))), load_rules()
     fired = Counter()
     for event in events:
-        for signal in replay([event], load_rules()):
+        for signal in replay([event], rules):
             image = event.get("Image") or event.get("SourceImage") or ""
             fired[(signal.rule_id, image.rsplit("\\", 1)[-1])] += 1
     return events, fired
