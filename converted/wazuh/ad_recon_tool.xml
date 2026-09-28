@@ -1,0 +1,108 @@
+<!-- Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView
+     Generated from sigma/stage2_remote_discovery/ad_recon_tool.yml (f14feb9c-3635-43bb-b5bb-4259afc30a0b) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="102020" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}AdFind\.exe$)|(?i:.*\\{1,2}SharpHound\.exe$))</field>
+    <description>DwellWatch stage 2: Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1482</id>
+      <id>T1069.002</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102021" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?:(?i:AdFind\.exe$)|(?i:SharpHound\.exe$))</field>
+    <description>DwellWatch stage 2: Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1482</id>
+      <id>T1069.002</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102022" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}ADExplorer\.exe$)|(?i:.*\\{1,2}ADExplorer64\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*snapshot)</field>
+    <description>DwellWatch stage 2: Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1482</id>
+      <id>T1069.002</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102023" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}powershell\.exe$)|(?i:.*\\{1,2}pwsh\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*Get\-DomainUser)|(?i:.*Get\-NetUser)|(?i:.*Get\-DomainGroupMember)|(?i:.*Get\-NetGroupMember)|(?i:.*Get\-DomainComputer)|(?i:.*Get\-NetComputer)|(?i:.*Find\-LocalAdminAccess)|(?i:.*Invoke\-UserHunter)|(?i:.*Invoke\-ShareFinder))</field>
+    <description>DwellWatch stage 2: Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1482</id>
+      <id>T1069.002</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102024" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?:(?i:PowerShell\.EXE$)|(?i:pwsh\.dll$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*Get\-DomainUser)|(?i:.*Get\-NetUser)|(?i:.*Get\-DomainGroupMember)|(?i:.*Get\-NetGroupMember)|(?i:.*Get\-DomainComputer)|(?i:.*Get\-NetComputer)|(?i:.*Find\-LocalAdminAccess)|(?i:.*Invoke\-UserHunter)|(?i:.*Invoke\-ShareFinder))</field>
+    <description>DwellWatch stage 2: Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1482</id>
+      <id>T1069.002</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="102025" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}AdFind\.exe$)|(?i:.*\\{1,2}SharpHound\.exe$))</field>
+    <description>DwellWatch stage 2: Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1482</id>
+      <id>T1069.002</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="102026" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}ADExplorer\.exe$)|(?i:.*\\{1,2}ADExplorer64\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*snapshot)</field>
+    <description>DwellWatch stage 2: Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1482</id>
+      <id>T1069.002</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="102027" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}powershell\.exe$)|(?i:.*\\{1,2}pwsh\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*Get\-DomainUser)|(?i:.*Get\-NetUser)|(?i:.*Get\-DomainGroupMember)|(?i:.*Get\-NetGroupMember)|(?i:.*Get\-DomainComputer)|(?i:.*Get\-NetComputer)|(?i:.*Find\-LocalAdminAccess)|(?i:.*Invoke\-UserHunter)|(?i:.*Invoke\-ShareFinder))</field>
+    <description>DwellWatch stage 2: Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1482</id>
+      <id>T1069.002</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+</group>

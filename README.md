@@ -16,8 +16,9 @@
 
 > **Status: in progress.** Phases 0 to 2 are done: the replay engine and six rules for stage 5
 > (backup destruction), tested on real Atomic Red Team and ransomware telemetry and converted for
-> Wazuh, Splunk and Sentinel. Phase 3 is under way: stage 1 (help-desk reset abuse) is done;
-> stages 2 to 4 and 6, correlation and the metric are still to come. See the [roadmap](#roadmap).
+> Wazuh, Splunk and Sentinel. Phase 3 is under way: stages 1 (help-desk reset abuse) and 2
+> (remote tooling and discovery) are done; stages 3, 4 and 6, correlation and the metric are
+> still to come. See the [roadmap](#roadmap).
 
 **Headline metric:** _not measured yet._ Once the chain has been emulated, this line will read
 "First alert fired N minutes before encryption in X of Y emulated runs", with the denominator and
@@ -49,7 +50,7 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | # | Stage | What the attacker does | Primary telemetry | ATT&CK |
 |---|---|---|---|---|
 | 1 | Help-desk reset abuse | Impersonates an employee, gets a password or MFA reset | Windows Security 4724 (password reset); group adds 4728, 4732, 4756. MFA resets are in the identity provider's logs, not Windows' | T1078, T1098, T1556 |
-| 2 | Remote tooling and discovery | Installs remote access, runs discovery commands | Sysmon 1 (process creation), 3 (network) | T1219, T1087, T1018 |
+| 2 | Remote tooling and discovery | Installs remote access, runs discovery commands | Sysmon 1 or Security 4688 (process creation) | T1219, T1087, T1018, T1482 |
 | 3 | Credential theft | Copies the AD database or reads LSASS | Sysmon 10 (access to lsass), 11 (NTDS.dit copy); Security 4662 with replication rights | T1003.001, T1003.003 |
 | 4 | Lateral movement | Moves host to host with the stolen account | Security 4624 logon types 3 and 10; Sysmon 1 for psexec and wmic | T1021, T1570 |
 | 5 | Backup destruction | Deletes shadow copies and backups before encrypting | Sysmon 1: vssadmin, wbadmin, bcdedit, diskshadow, wmic, reagentc | T1490 |
@@ -61,6 +62,10 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 |---|---|---|
 | 1 | [Password Reset On Another Account](sigma/stage1_helpdesk/password_reset_by_another_account.yml) | one account resetting another's password (4724); a weak signal on its own, for correlation |
 | 1 | [Member Added To A Privileged Group](sigma/stage1_helpdesk/privileged_group_member_added.yml) | an add to Domain, Enterprise or Schema Admins, Administrators, the Operators groups or DnsAdmins |
+| 2 | [Remote Access Tool Started](sigma/stage2_remote_discovery/remote_access_tool_started.yml) | AnyDesk, TeamViewer, ScreenConnect, GoToAssist, Splashtop, RustDesk, Atera, Tailscale, ngrok and others, renamed or not |
+| 2 | [Domain Trusts Or Controllers Listed](sigma/stage2_remote_discovery/domain_trust_discovery.yml) | `nltest /domain_trusts` or `/dclist`, dsquery for trusts, PowerView's trust and DC functions |
+| 2 | [Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView](sigma/stage2_remote_discovery/ad_recon_tool.yml) | AdFind or SharpHound (renamed too), AD Explorer snapshots, PowerView's account and computer functions |
+| 2 | [Domain Queried With net](sigma/stage2_remote_discovery/net_domain_query.yml) | `net user`, `group`, `accounts` or `view` with `/domain`, one alert per command |
 | 5 | [Shadow Copies Deleted With vssadmin](sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml) | `vssadmin delete shadows` |
 | 5 | [Backup Catalogue Deleted With wbadmin](sigma/stage5_backup_destruction/wbadmin_delete_catalog.yml) | `wbadmin delete catalog` |
 | 5 | [Windows Recovery Disabled With bcdedit](sigma/stage5_backup_destruction/bcdedit_recovery_disabled.yml) | `bcdedit ... recoveryenabled no`, `bootstatuspolicy ignoreallfailures` |
@@ -72,6 +77,13 @@ On Splunk's attack_data, the stage 1 rules fire on all 61 password resets and al
 group adds in four real Security logs, and stay quiet on an add to a group that grants nothing.
 On data they were not written against (EVTX-ATTACK-SAMPLES), they fired 4 times, all on attacks:
 noPac, a post-Zerologon password reset, and Guest and Network Service made local administrators.
+
+The stage 2 rules fire on every remote-access tool, trust query, AdFind, PowerView and
+`net ... /domain` command in four real attack_data runs, once per command and never on the
+shell or download around it. On data they were not written against, their first version caught
+6 of 8 discovery commands from Conti's Cobalt Strike session and an Atomic run, with no false
+positives; the two misses (`net view /domain`, PowerView's `Get-DomainController`) are now
+fixed.
 
 For stage 5, the Atomic Red Team T1490 run from attack_data (285 events) raises exactly
 one alert per targeted command, 6 in all, and none for the `cmd.exe` processes that launched them.
@@ -129,7 +141,7 @@ express, and the converter problems found on the way, are in the
 - [x] **Phase 0:** repository scaffold, data model, CI
 - [x] **Phase 1:** replay engine and the first detections (stage 5, backup destruction)
 - [x] **Phase 2:** conversion to Wazuh, SPL and KQL
-- [ ] **Phase 3:** rules for stages 1 to 4 and 6 (stage 1 done)
+- [ ] **Phase 3:** rules for stages 1 to 4 and 6 (stages 1 and 2 done)
 - [ ] **Phase 4:** the correlation engine
 - [ ] **Phase 5:** the dwell-time metric
 - [ ] **Phase 6:** IntelPulse webhook integration
@@ -152,7 +164,7 @@ docs/             lab architecture, threat model, detection catalogue, method
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-datasets/fetch.sh          # about 15 MB of real telemetry; without it the real-data tests skip
+datasets/fetch.sh          # about 27 MB of real telemetry; without it the real-data tests skip
 ruff check
 pytest
 python -m dwellwatch.convert   # after changing a rule: regenerate converted/ (make convert)

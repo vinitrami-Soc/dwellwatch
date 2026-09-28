@@ -1,0 +1,115 @@
+<!-- Domain Trusts Or Controllers Listed
+     Generated from sigma/stage2_remote_discovery/domain_trust_discovery.yml (0c1b45b9-e2e6-4feb-a097-e7d7ca2531c8) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="102010" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}nltest\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*domain_trusts)|(?i:.*all_trusts)|(?i:.*trusted_domains)|(?i:.*dclist))</field>
+    <description>DwellWatch stage 2: Domain Trusts Or Controllers Listed</description>
+    <mitre>
+      <id>T1482</id>
+      <id>T1018</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102011" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:nltestrk\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*domain_trusts)|(?i:.*all_trusts)|(?i:.*trusted_domains)|(?i:.*dclist))</field>
+    <description>DwellWatch stage 2: Domain Trusts Or Controllers Listed</description>
+    <mitre>
+      <id>T1482</id>
+      <id>T1018</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102012" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}dsquery\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*trustedDomain)</field>
+    <description>DwellWatch stage 2: Domain Trusts Or Controllers Listed</description>
+    <mitre>
+      <id>T1482</id>
+      <id>T1018</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102013" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:dsquery\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*trustedDomain)</field>
+    <description>DwellWatch stage 2: Domain Trusts Or Controllers Listed</description>
+    <mitre>
+      <id>T1482</id>
+      <id>T1018</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102014" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}powershell\.exe$)|(?i:.*\\{1,2}pwsh\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*Get\-NetDomainTrust)|(?i:.*Get\-DomainTrust)|(?i:.*Get\-NetForestTrust)|(?i:.*Get\-ForestTrust)|(?i:.*Get\-ADTrust)|(?i:.*GetAllTrustRelationships)|(?i:.*Get\-DomainController)|(?i:.*Get\-NetDomainController))</field>
+    <description>DwellWatch stage 2: Domain Trusts Or Controllers Listed</description>
+    <mitre>
+      <id>T1482</id>
+      <id>T1018</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102015" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?:(?i:PowerShell\.EXE$)|(?i:pwsh\.dll$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*Get\-NetDomainTrust)|(?i:.*Get\-DomainTrust)|(?i:.*Get\-NetForestTrust)|(?i:.*Get\-ForestTrust)|(?i:.*Get\-ADTrust)|(?i:.*GetAllTrustRelationships)|(?i:.*Get\-DomainController)|(?i:.*Get\-NetDomainController))</field>
+    <description>DwellWatch stage 2: Domain Trusts Or Controllers Listed</description>
+    <mitre>
+      <id>T1482</id>
+      <id>T1018</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="102016" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}nltest\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*domain_trusts)|(?i:.*all_trusts)|(?i:.*trusted_domains)|(?i:.*dclist))</field>
+    <description>DwellWatch stage 2: Domain Trusts Or Controllers Listed</description>
+    <mitre>
+      <id>T1482</id>
+      <id>T1018</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="102017" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}dsquery\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*trustedDomain)</field>
+    <description>DwellWatch stage 2: Domain Trusts Or Controllers Listed</description>
+    <mitre>
+      <id>T1482</id>
+      <id>T1018</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="102018" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}powershell\.exe$)|(?i:.*\\{1,2}pwsh\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*Get\-NetDomainTrust)|(?i:.*Get\-DomainTrust)|(?i:.*Get\-NetForestTrust)|(?i:.*Get\-ForestTrust)|(?i:.*Get\-ADTrust)|(?i:.*GetAllTrustRelationships)|(?i:.*Get\-DomainController)|(?i:.*Get\-NetDomainController))</field>
+    <description>DwellWatch stage 2: Domain Trusts Or Controllers Listed</description>
+    <mitre>
+      <id>T1482</id>
+      <id>T1018</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+</group>

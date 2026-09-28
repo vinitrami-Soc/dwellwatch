@@ -1,0 +1,90 @@
+<!-- Domain Queried With net
+     Generated from sigma/stage2_remote_discovery/net_domain_query.yml (9fcba4cc-17c7-424e-966c-f9a53916d08e) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="102030" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*\ /do)|(?i:.*/\ do))</field>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}net1\.exe$)</field>
+    <description>DwellWatch stage 2: Domain Queried With net</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1069.002</id>
+      <id>T1018</id>
+      <id>T1201</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102031" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*\ /do)|(?i:.*/\ do))</field>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:net1\.exe$)</field>
+    <description>DwellWatch stage 2: Domain Queried With net</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1069.002</id>
+      <id>T1018</id>
+      <id>T1201</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102032" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?i:.*\ /do)|(?i:.*/\ do)))(?=(?i:.*\ view))</field>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}net\.exe$)</field>
+    <description>DwellWatch stage 2: Domain Queried With net</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1069.002</id>
+      <id>T1018</id>
+      <id>T1201</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102033" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?i:.*\ /do)|(?i:.*/\ do)))(?=(?i:.*\ view))</field>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:net\.exe$)</field>
+    <description>DwellWatch stage 2: Domain Queried With net</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1069.002</id>
+      <id>T1018</id>
+      <id>T1201</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="102034" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*\ /do)|(?i:.*/\ do))</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}net1\.exe$)</field>
+    <description>DwellWatch stage 2: Domain Queried With net</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1069.002</id>
+      <id>T1018</id>
+      <id>T1201</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="102035" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?i:.*\ /do)|(?i:.*/\ do)))(?=(?i:.*\ view))</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}net\.exe$)</field>
+    <description>DwellWatch stage 2: Domain Queried With net</description>
+    <mitre>
+      <id>T1087.002</id>
+      <id>T1069.002</id>
+      <id>T1018</id>
+      <id>T1201</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+</group>

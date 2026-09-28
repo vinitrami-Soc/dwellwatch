@@ -1,0 +1,54 @@
+title: Remote Access Tool Started
+id: 164514db-734b-44e6-af97-48bdd1cb19dd
+status: experimental
+description: |
+  Detects a commercial remote-access or tunnelling tool starting: AnyDesk, TeamViewer,
+  ScreenConnect, GoToAssist, Splashtop, RustDesk, Atera, MeshCentral's agent, Tactical RMM,
+  Tailscale or ngrok. In a help-desk-led intrusion the attacker installs one soon after the reset,
+  so their access survives the next password change; CISA's Scattered Spider advisory names most
+  of these. Matched by path, original file name and product name, so a renamed copy is still
+  caught. One install starts several processes, so expect several alerts per install.
+  DwellWatch stage 2 (remote tooling and discovery).
+references:
+  - https://attack.mitre.org/techniques/T1219/
+  - https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-320a
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.command-and-control
+  - attack.t1219
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_image:
+    Image|endswith:
+      - '\AnyDesk.exe'
+      - '\TeamViewer.exe'
+      - '\TeamViewer_Service.exe'
+      - '\ScreenConnect.ClientService.exe'
+      - '\ScreenConnect.WindowsClient.exe'
+      - '\GoToAssist.exe'
+      - '\SRService.exe' # Splashtop Streamer
+      - '\rustdesk.exe'
+      - '\AteraAgent.exe'
+      - '\MeshAgent.exe'
+      - '\tacticalrmm.exe'
+      - '\tailscaled.exe'
+      - '\ngrok.exe'
+  selection_original_name:
+    OriginalFileName:
+      - 'TeamViewer.exe'
+      - 'ScreenConnect.WindowsClient.exe'
+      - 'GoToOpener.exe'
+  selection_product: # AnyDesk sets no original file name; its product name survives a rename
+    Product:
+      - 'AnyDesk'
+      - 'TeamViewer'
+      - 'ScreenConnect'
+      - 'GoToAssist'
+  condition: 1 of selection_*
+falsepositives:
+  - An organisation that uses one of these tools for its own support. Drop that tool from the
+    lists, or scope the rule to hosts and accounts that should not be running it.
+level: medium

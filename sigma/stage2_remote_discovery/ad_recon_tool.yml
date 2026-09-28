@@ -1,0 +1,64 @@
+title: Active Directory Enumerated With AdFind, SharpHound, AD Explorer Or PowerView
+id: f14feb9c-3635-43bb-b5bb-4259afc30a0b
+status: experimental
+description: |
+  Detects the tools ransomware crews use to dump Active Directory in bulk: AdFind (Conti, Ryuk
+  and many others), SharpHound (BloodHound's collector), AD Explorer saving a snapshot of the
+  directory to a file, which Scattered Spider has used, and PowerView's account, group and
+  computer functions. AdFind and SharpHound are matched by path and by original file name, so a
+  renamed copy is still caught. PowerView is matched by function names that only it defines, not
+  by the ActiveDirectory module's everyday cmdlets such as Get-ADUser. DwellWatch stage 2 (remote
+  tooling and discovery).
+references:
+  - https://attack.mitre.org/techniques/T1087/002/
+  - https://attack.mitre.org/software/S0552/
+  - https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-320a
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.discovery
+  - attack.t1087.002
+  - attack.t1482
+  - attack.t1069.002
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_adfind:
+    - Image|endswith: '\AdFind.exe'
+    - OriginalFileName: 'AdFind.exe'
+  selection_sharphound:
+    - Image|endswith: '\SharpHound.exe'
+    - OriginalFileName: 'SharpHound.exe'
+  selection_adexplorer_binary:
+    Image|endswith:
+      - '\ADExplorer.exe'
+      - '\ADExplorer64.exe'
+  selection_adexplorer_snapshot:
+    CommandLine|contains: 'snapshot'
+  selection_powerview_binary:
+    - Image|endswith:
+        - '\powershell.exe'
+        - '\pwsh.exe'
+    - OriginalFileName:
+        - 'PowerShell.EXE'
+        - 'pwsh.dll'
+  selection_powerview_function:
+    CommandLine|contains:
+      - 'Get-DomainUser'
+      - 'Get-NetUser'
+      - 'Get-DomainGroupMember'
+      - 'Get-NetGroupMember'
+      - 'Get-DomainComputer'
+      - 'Get-NetComputer'
+      - 'Find-LocalAdminAccess'
+      - 'Invoke-UserHunter'
+      - 'Invoke-ShareFinder'
+  condition: >-
+    selection_adfind or selection_sharphound
+    or (selection_adexplorer_binary and selection_adexplorer_snapshot)
+    or (selection_powerview_binary and selection_powerview_function)
+falsepositives:
+  - Directory administrators or auditors who use AdFind, AD Explorer snapshots or PowerView.
+    These are rare enough to allow by account.
+level: high

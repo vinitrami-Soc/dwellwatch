@@ -25,6 +25,10 @@ datasets/attack_techniques/T1098/account_manipulation/xml-windows-security.log  
 datasets/attack_techniques/T1098/windows_multiple_passwords_changed/windows_multiple_passwords_changed.log 2855dedf40a5c1c7af7e228db7b2201f5ccf2e567a769af9b012388bf0169b45
 datasets/attack_techniques/T1098/dnsadmins_member_added/windows-security.log         557bdeb5618fafe895da44d24660fabc321d87b467404061267e9a6c05bbcab0
 datasets/attack_techniques/T1136.001/atomic_red_team/xml-windows-security.log        9eaa564e74abbc6b5ac38d4d0a209f1240cd910e223d5f35010ae68e6355fd73
+datasets/attack_techniques/T1219/atomic_red_team/windows-sysmon.log                  01703d7ffa04009b543c013e25d2591e0965aaf40002bf6cb2b882fe9caa814b
+datasets/attack_techniques/T1219/screenconnect/screenconnect_sysmon.log              c8fee2c4b23d85a2312d95b64dbbe91d5de431fde8ec0d27ba00c7121ac77a94
+datasets/attack_techniques/T1482/atomic_red_team/windows-sysmon.log                  e84ac5f6c9b1798ae2df464b8238179736c70f42306b02863cf4d3d79cfc5e3f
+datasets/attack_techniques/T1087.002/AD_discovery/windows-sysmon.log                 1b78f515120a7e5ac532444fd7fd322c8dc1abf8efebe0295abad3939972db0d
 "
 
 sha256() {

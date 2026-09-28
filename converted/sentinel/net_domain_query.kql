@@ -1,0 +1,4 @@
+// Domain Queried With net
+// Generated from sigma/stage2_remote_discovery/net_domain_query.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where (TargetProcessCommandLine contains " /do" or TargetProcessCommandLine contains "/ do") and ((TargetProcessName endswith "\\net1.exe" or TargetProcessFileOriginalName =~ "net1.exe") or ((TargetProcessName endswith "\\net.exe" or TargetProcessFileOriginalName =~ "net.exe") and TargetProcessCommandLine contains " view"))

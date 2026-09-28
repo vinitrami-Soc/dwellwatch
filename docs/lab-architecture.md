@@ -9,7 +9,7 @@ DwellWatch runs in two modes that share the same rules and the same Python code.
 
 ## Replay datasets
 
-`datasets/fetch.sh` fetches seven files from one pinned commit of attack_data
+`datasets/fetch.sh` fetches eleven files from one pinned commit of attack_data
 (`52c9d8a53167872293c9d0ca359b5166fb25e243`) and checks each one against a pinned SHA-256.
 Nothing it fetches is committed: `datasets/` is gitignored apart from the script.
 
@@ -22,6 +22,10 @@ Nothing it fetches is committed: `datasets/` is gitignored apart from the script
 | `T1098/account_manipulation/xml-windows-security.log` | Accounts created, enabled and reset (21 resets), and four group adds: three to Domain Admins, one of them an account adding itself, and one to a workstation's `None` group | 430 Security | Attack and control: the Domain Admins adds fire; the `None` add, and 400 other account events, do not |
 | `T1098/dnsadmins_member_added/windows-security.log` | An account added to DnsAdmins, whose members can make the DNS service load code | 228 (173 Security) | Attack: the one add fires |
 | `T1136.001/atomic_red_team/xml-windows-security.log` | Atomic Red Team T1136.001: a local account created and added to Administrators | 2 Security | Attack: the add fires; creating the account does not |
+| `T1219/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1219: AnyDesk, TeamViewer and GoToAssist downloaded with PowerShell, installed and started | 26 Sysmon | Attack: each tool process fires; the downloads and installers around them do not |
+| `T1219/screenconnect/screenconnect_sysmon.log` | ScreenConnect installed through its ClickOnce launcher and run as a service | 105 Sysmon | Attack: the ScreenConnect service and client fire |
+| `T1482/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1482: `nltest /domain_trusts`, `dsquery` for trusted domains, PowerView's trust functions and AdFind | 515 Sysmon | Attack: each query fires once, on the tool; the `cmd.exe` that launched it does not |
+| `T1087.002/AD_discovery/windows-sysmon.log` | Domain account listing: `net user /domain` in three spellings, PowerView's `Get-DomainUser`, `Get-ADUser`, `dsquery user`, WMI's `ds_user`, plus 7,000 events of a domain controller's background activity | 7,070 Sysmon | Attack and control: net and PowerView fire once per command; the everyday admin listings do not |
 
 **Why the control is attack data.** attack_data has no folder of benign Windows activity. The
 T1003.003 run is the next best thing, and arguably a harder test: it runs the same tools as
@@ -131,6 +135,40 @@ Administrators group. They are the only resets and group adds in that data, so t
 rules catching attacks they were not written for, not how quiet they stay. The five 4738
 events it also holds (an ACL-abuse sample changing another user's attributes) record no password
 change, so no reset was missed there; they also show why a 4738 rule would be noisy.
+
+### Stage 2 on real data
+
+The four stage 2 files replay to 37 signals, the number `pytest` pins:
+
+- **Remote-access tools**: 20 alerts, one per tool process. The Atomic run starts AnyDesk five
+  times, TeamViewer twice (installer and client) and GoToAssist eight times (its launcher twice
+  and six helper processes, caught by product name); ScreenConnect runs its service twice and its
+  client three times. The PowerShell downloads, the msiexec install and the batch file around
+  them stay quiet.
+- **Trusts**: `nltest` three times, `dsquery` once and PowerView once, each one alert; the
+  `cmd.exe` processes that launched them stay quiet. AdFind, run twice in the same test, fires the
+  recon rule.
+- **Accounts**: eight `net user /domain` commands (in the spellings `/do`, `/domain` and
+  `users`), each one alert on `net1.exe` and none on the `net.exe` that started it, and two
+  PowerView `Get-DomainUser` calls. `Get-ADUser -Filter *`, `dsquery user` and WMI's `ds_user`
+  listing are in the same run and are not matched, by choice (see the catalogue).
+
+**On data the rules were not written against** (the round below), the first version of the
+stage 2 rules fired on 6 of 8 in-scope commands, all in Conti's Cobalt Strike session and the
+PanacheSysmon Atomic sample, with **no false positives**: Conti's `net group "Domain Admins"
+/domain` and `"Enterprise Admins"`, `nltest /DOMAIN_TRUSTS` (typed twice, once as
+`/ DOMAIN_TRUSTS`), and PowerView's `Get-DomainComputer` twice. It missed two:
+
+- `net view /domain` (PanacheSysmon). net.exe runs `view` itself instead of handing it to
+  net1.exe, which the rule had assumed of every net command. Two separate recordings show it.
+- PowerView's `Get-DomainController` (Conti), which was not in the trust and controller rule.
+
+Both were fixed, and Conti's two `net group ... / domain` commands, typed with a space, now match
+too. With the fixes the rules fire on all 10; for the four commands the fixes cover, that is a
+regression check, not an unseen test. The unseen data holds no remote-access tool, AdFind, SharpHound or AD Explorer, so
+the remote-tool rule has no unseen result either way: it fired on nothing in 392,824 events.
+Commands that stayed quiet, correctly: local `net user` (a webshell sample), `net view`
+without `/domain`, `net session`, `net use`, and Ryuk's and Prestige's `net stop`.
 
 ### Tested on data the rules were not written against
 

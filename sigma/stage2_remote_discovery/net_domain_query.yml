@@ -1,0 +1,45 @@
+title: Domain Queried With net
+id: 9fcba4cc-17c7-424e-966c-f9a53916d08e
+status: experimental
+description: |
+  Detects net run against the domain: `net user /domain`, `net group "Domain Admins" /domain`,
+  `net accounts /domain`, `net view /domain`. These list the domain's accounts, privileged
+  groups, password policy and hosts, and they are among the first commands an intruder runs.
+  net.exe hands most of these to net1.exe, so the rule matches net1.exe and raises one alert per
+  command whichever of the two the attacker typed. `net view` is the exception: net.exe runs it
+  itself, so for view the rule matches net.exe. DwellWatch stage 2 (remote tooling and
+  discovery).
+references:
+  - https://attack.mitre.org/techniques/T1087/002/
+  - https://attack.mitre.org/techniques/T1069/002/
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.discovery
+  - attack.t1087.002
+  - attack.t1069.002
+  - attack.t1018
+  - attack.t1201
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_net1:
+    - Image|endswith: '\net1.exe'
+    - OriginalFileName: 'net1.exe'
+  selection_net:
+    - Image|endswith: '\net.exe'
+    - OriginalFileName: 'net.exe'
+  selection_view:
+    CommandLine|contains: ' view'
+  selection_domain:
+    CommandLine|contains:
+      - ' /do' # /do, /dom and /domain are all accepted
+      - '/ do' # "/ domain", as typed in a Conti intrusion
+  condition: selection_domain and (selection_net1 or (selection_net and selection_view))
+falsepositives:
+  - Service-desk staff checking an account with `net user <name> /domain`, the same command an
+    attacker runs. Alone this should feed correlation, not page anyone.
+  - Changes made through net against the domain (`net user <name> <password> /domain`, `net
+    group ... /add /domain`) match too; the stage 1 rules also see those in the Security log.
+level: medium

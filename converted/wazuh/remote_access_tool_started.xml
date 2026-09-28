@@ -1,0 +1,45 @@
+<!-- Remote Access Tool Started
+     Generated from sigma/stage2_remote_discovery/remote_access_tool_started.yml (164514db-734b-44e6-af97-48bdd1cb19dd) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="102000" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}AnyDesk\.exe$)|(?i:.*\\{1,2}TeamViewer\.exe$)|(?i:.*\\{1,2}TeamViewer_Service\.exe$)|(?i:.*\\{1,2}ScreenConnect\.ClientService\.exe$)|(?i:.*\\{1,2}ScreenConnect\.WindowsClient\.exe$)|(?i:.*\\{1,2}GoToAssist\.exe$)|(?i:.*\\{1,2}SRService\.exe$)|(?i:.*\\{1,2}rustdesk\.exe$)|(?i:.*\\{1,2}AteraAgent\.exe$)|(?i:.*\\{1,2}MeshAgent\.exe$)|(?i:.*\\{1,2}tacticalrmm\.exe$)|(?i:.*\\{1,2}tailscaled\.exe$)|(?i:.*\\{1,2}ngrok\.exe$))</field>
+    <description>DwellWatch stage 2: Remote Access Tool Started</description>
+    <mitre>
+      <id>T1219</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102001" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?:(?i:TeamViewer\.exe$)|(?i:ScreenConnect\.WindowsClient\.exe$)|(?i:GoToOpener\.exe$))</field>
+    <description>DwellWatch stage 2: Remote Access Tool Started</description>
+    <mitre>
+      <id>T1219</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="102002" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.product" type="pcre2">(?s)^(?:(?i:AnyDesk$)|(?i:TeamViewer$)|(?i:ScreenConnect$)|(?i:GoToAssist$))</field>
+    <description>DwellWatch stage 2: Remote Access Tool Started</description>
+    <mitre>
+      <id>T1219</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="102003" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}AnyDesk\.exe$)|(?i:.*\\{1,2}TeamViewer\.exe$)|(?i:.*\\{1,2}TeamViewer_Service\.exe$)|(?i:.*\\{1,2}ScreenConnect\.ClientService\.exe$)|(?i:.*\\{1,2}ScreenConnect\.WindowsClient\.exe$)|(?i:.*\\{1,2}GoToAssist\.exe$)|(?i:.*\\{1,2}SRService\.exe$)|(?i:.*\\{1,2}rustdesk\.exe$)|(?i:.*\\{1,2}AteraAgent\.exe$)|(?i:.*\\{1,2}MeshAgent\.exe$)|(?i:.*\\{1,2}tacticalrmm\.exe$)|(?i:.*\\{1,2}tailscaled\.exe$)|(?i:.*\\{1,2}ngrok\.exe$))</field>
+    <description>DwellWatch stage 2: Remote Access Tool Started</description>
+    <mitre>
+      <id>T1219</id>
+    </mitre>
+    <group>dwellwatch_stage2,</group>
+  </rule>
+</group>

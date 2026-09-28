@@ -148,12 +148,12 @@ def test_wazuh_rule_ids_are_unique_and_in_the_local_range():
     assert all(block % 10 == 0 for block in blocks.values())
 
 
-def test_wazuh_levels_outrank_wazuhs_own_rules_beside_them():
-    # Wazuh tries the highest level first and stops at the first match. Its own rules under 60103
-    # (successful Security events) go up to level 9 (60115, account locked out); its Sysmon event 1
-    # rules that match these commands go up to 12 (92057, encoded PowerShell).
-    for rule in wazuh_model.load_rules(wazuh_texts()):
-        assert rule.level > (12 if rule.if_group == "sysmon_event1" else 9), rule.id
+def test_security_rules_outrank_every_built_in_rule_beside_them():
+    # Wazuh tries the highest level first and stops at the first match. Every built-in child of
+    # 60103 is at level 9 or below. Sysmon rules are checked event by event instead, in
+    # assert_wazuh_agrees_with_replay, because Wazuh's own Sysmon rules go up to level 15.
+    security = [rule for rule in wazuh_model.load_rules(wazuh_texts()) if rule.if_sid == "60103"]
+    assert security and all(rule.level > wazuh_model.SECURITY_SUCCESS_MAX_LEVEL for rule in security)
 
 
 WAZUH_RULES = wazuh_model.load_rules(wazuh_texts())
@@ -163,7 +163,8 @@ RULES = load_rules()
 
 
 def assert_wazuh_agrees_with_replay(events):
-    """Per event, the Sigma rules Wazuh would fire on are the ones replay fires on."""
+    """Per event, the Sigma rules Wazuh would fire on are the ones replay fires on, and no built-in
+    Wazuh rule that is tried first could take the event."""
     fired = 0
     for event in events:
         expected = {signal.rule_id for signal in replay([event], RULES)}
@@ -171,6 +172,8 @@ def assert_wazuh_agrees_with_replay(events):
         fired_rules = [rule for rule in WAZUH_RULES if wazuh_model.fires(rule, fields)]
         actual = {SIGMA_ID_BY_BLOCK[rule.id - rule.id % 10] for rule in fired_rules}
         assert actual == expected, (event.get("CommandLine"), event.get("Image"))
+        for rule in fired_rules:
+            assert not wazuh_model.rivals(rule, event), (rule.id, event.get("CommandLine"))
         fired += bool(expected)
     return fired
 
@@ -203,11 +206,18 @@ PLANTED = [
     security_event(4732, TargetUserName="Administrators", TargetSid="BUILTIN\\Administrators"),
     security_event(4732, TargetUserName="Users", TargetSid="BUILTIN\\Users"),
     security_event(4729, TargetUserName="Domain Admins", TargetSid="S-1-5-21-1-2-3-512"),
+    process_event("AnyDesk.exe --local-service", "C:\\Users\\jdoe\\Downloads\\AnyDesk.exe"),
+    process_event("nltest /domain_trusts /all_trusts", "C:\\Windows\\System32\\nltest.exe"),
+    process_event("nltest /dsgetdc:lab.local", "C:\\Windows\\System32\\nltest.exe"),
+    process_event('net1 group "Domain Admins" /domain', "C:\\Windows\\System32\\net1.exe"),
+    process_event("net view /domain", "C:\\Windows\\System32\\net.exe"),
+    process_event("net user /domain", "C:\\Windows\\System32\\net.exe"),
+    process_event("adf.exe -f (objectcategory=person)", "C:\\Temp\\adf.exe", original_file_name="AdFind.exe"),
 ]
 
 
 def test_wazuh_agrees_with_replay_on_planted_events():
-    assert assert_wazuh_agrees_with_replay(PLANTED) == 11
+    assert assert_wazuh_agrees_with_replay(PLANTED) == 16
 
 
 @pytest.mark.parametrize("relative, alerts", [
@@ -218,6 +228,10 @@ def test_wazuh_agrees_with_replay_on_planted_events():
     ("T1098/account_manipulation/xml-windows-security.log", 24),
     ("T1098/dnsadmins_member_added/windows-security.log", 1),
     ("T1136.001/atomic_red_team/xml-windows-security.log", 1),
+    ("T1219/atomic_red_team/windows-sysmon.log", 15),
+    ("T1219/screenconnect/screenconnect_sysmon.log", 5),
+    ("T1482/atomic_red_team/windows-sysmon.log", 7),
+    ("T1087.002/AD_discovery/windows-sysmon.log", 10),
 ])
 def test_wazuh_agrees_with_replay_on_real_events(relative, alerts):
     assert assert_wazuh_agrees_with_replay(load_events(dataset(relative))) == alerts

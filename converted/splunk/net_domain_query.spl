@@ -1,0 +1,1 @@
+CommandLine IN ("* /do*", "*/ do*") Image="*\\net1.exe" OR OriginalFileName="net1.exe" OR (Image="*\\net.exe" OR OriginalFileName="net.exe" CommandLine="* view*")

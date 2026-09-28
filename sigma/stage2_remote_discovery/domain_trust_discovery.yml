@@ -1,0 +1,61 @@
+title: Domain Trusts Or Controllers Listed
+id: 0c1b45b9-e2e6-4feb-a097-e7d7ca2531c8
+status: experimental
+description: |
+  Detects the domain's trusts or domain controllers being listed with nltest, dsquery or
+  PowerShell (PowerView, the ActiveDirectory module's Get-ADTrust, or .NET's
+  GetAllTrustRelationships). Ransomware crews map the forest this way before choosing where to go
+  next; it is one of the first commands in many intrusions. Alerts on the tool that runs the
+  query, not on the shell that launched it. DwellWatch stage 2 (remote tooling and discovery).
+references:
+  - https://attack.mitre.org/techniques/T1482/
+  - https://attack.mitre.org/techniques/T1018/
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.discovery
+  - attack.t1482
+  - attack.t1018
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_nltest_binary:
+    - Image|endswith: '\nltest.exe'
+    - OriginalFileName: 'nltestrk.exe'
+  selection_nltest_query:
+    CommandLine|contains:
+      - 'domain_trusts'
+      - 'all_trusts'
+      - 'trusted_domains'
+      - 'dclist'
+  selection_dsquery_binary:
+    - Image|endswith: '\dsquery.exe'
+    - OriginalFileName: 'dsquery.exe'
+  selection_dsquery_query:
+    CommandLine|contains: 'trustedDomain'
+  selection_powershell_binary:
+    - Image|endswith:
+        - '\powershell.exe'
+        - '\pwsh.exe'
+    - OriginalFileName:
+        - 'PowerShell.EXE'
+        - 'pwsh.dll'
+  selection_powershell_query:
+    CommandLine|contains:
+      - 'Get-NetDomainTrust'
+      - 'Get-DomainTrust'
+      - 'Get-NetForestTrust'
+      - 'Get-ForestTrust'
+      - 'Get-ADTrust'
+      - 'GetAllTrustRelationships'
+      - 'Get-DomainController' # PowerView; the ActiveDirectory module's Get-ADDomainController is not matched
+      - 'Get-NetDomainController'
+  condition: >-
+    (selection_nltest_binary and selection_nltest_query)
+    or (selection_dsquery_binary and selection_dsquery_query)
+    or (selection_powershell_binary and selection_powershell_query)
+falsepositives:
+  - Administrators troubleshooting trusts or domain controller location. `nltest /dsgetdc`, the
+    usual troubleshooting query, is not matched.
+level: medium
