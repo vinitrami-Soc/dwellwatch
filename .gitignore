@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Secrets: only the template is committed
+.env
+.env.*
+!.env.example
+
+# Raw Windows event logs: commit sanitised JSON extracts, never .evtx
+*.evtx
+
+# Replay datasets are fetched, not committed (datasets/fetch.sh)
+datasets/*
+!datasets/.gitkeep
+!datasets/fetch.sh
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
