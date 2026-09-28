@@ -1,0 +1,14 @@
+<!-- Ransom Note Written
+     Generated from sigma/stage6_encryption/ransom_note_written.yml (28e71081-01cb-406d-9be9-143888773526) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 11 -->
+  <rule id="106000" level="13">
+    <if_group>sysmon_event_11</if_group>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?s)^(?=(?:(?i:.*decrypt)|(?i:.*how_to_)|(?i:.*how\-to\-)|(?i:.*restore_my_files)|(?i:.*restore\-my\-files)|(?i:.*recover_my_files)|(?i:.*recover\-my\-files)|(?i:.*your_files)|(?i:.*your\-files)|(?i:.*\\{1,2}_readme\.txt)|(?i:.*\\{1,2}!readme)|(?i:.*\\{1,2}readme!)))(?=(?:(?i:.*\.txt$)|(?i:.*\.html$)|(?i:.*\.htm$)|(?i:.*\.hta$)))</field>
+    <description>DwellWatch stage 6: Ransom Note Written</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+</group>

@@ -1,0 +1,106 @@
+<!-- Files Encrypted With A Command-Line Tool
+     Generated from sigma/stage6_encryption/files_encrypted_with_cli_tool.yml (2ae5d42f-d738-474f-8732-921676ca94df) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="106030" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}gpg\.exe$)|(?i:.*\\{1,2}gpg2\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?i:.*\ \-c\ )|(?i:.*\ \-\-symmetric)))(?=(?i:.*\-\-passphrase))</field>
+    <description>DwellWatch stage 6: Files Encrypted With A Command-Line Tool</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="106031" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:gpg\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?i:.*\ \-c\ )|(?i:.*\ \-\-symmetric)))(?=(?i:.*\-\-passphrase))</field>
+    <description>DwellWatch stage 6: Files Encrypted With A Command-Line Tool</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="106032" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}openssl\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*\ enc\ ))(?=(?i:.*\ \-pass))</field>
+    <description>DwellWatch stage 6: Files Encrypted With A Command-Line Tool</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="106033" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:openssl\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*\ enc\ ))(?=(?i:.*\ \-pass))</field>
+    <description>DwellWatch stage 6: Files Encrypted With A Command-Line Tool</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="106034" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}7z\.exe$)|(?i:.*\\{1,2}7za\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*\ \-p))(?=(?i:.*\ \-mhe))</field>
+    <description>DwellWatch stage 6: Files Encrypted With A Command-Line Tool</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="106035" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?:(?i:7z\.exe$)|(?i:7za\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*\ \-p))(?=(?i:.*\ \-mhe))</field>
+    <description>DwellWatch stage 6: Files Encrypted With A Command-Line Tool</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="106036" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}gpg\.exe$)|(?i:.*\\{1,2}gpg2\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?i:.*\ \-c\ )|(?i:.*\ \-\-symmetric)))(?=(?i:.*\-\-passphrase))</field>
+    <description>DwellWatch stage 6: Files Encrypted With A Command-Line Tool</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="106037" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}openssl\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*\ enc\ ))(?=(?i:.*\ \-pass))</field>
+    <description>DwellWatch stage 6: Files Encrypted With A Command-Line Tool</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="106038" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}7z\.exe$)|(?i:.*\\{1,2}7za\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?i:.*\ \-p))(?=(?i:.*\ \-mhe))</field>
+    <description>DwellWatch stage 6: Files Encrypted With A Command-Line Tool</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+</group>

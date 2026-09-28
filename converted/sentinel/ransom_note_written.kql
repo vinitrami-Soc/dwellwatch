@@ -1,0 +1,4 @@
+// Ransom Note Written
+// Generated from sigma/stage6_encryption/ransom_note_written.yml by dwellwatch.convert; do not edit.
+imFileEvent
+| where (TargetFilePath contains "decrypt" or TargetFilePath contains "how_to_" or TargetFilePath contains "how-to-" or TargetFilePath contains "restore_my_files" or TargetFilePath contains "restore-my-files" or TargetFilePath contains "recover_my_files" or TargetFilePath contains "recover-my-files" or TargetFilePath contains "your_files" or TargetFilePath contains "your-files" or TargetFilePath contains "\\_readme.txt" or TargetFilePath contains "\\!readme" or TargetFilePath contains "\\readme!") and (TargetFilePath endswith ".txt" or TargetFilePath endswith ".html" or TargetFilePath endswith ".htm" or TargetFilePath endswith ".hta")

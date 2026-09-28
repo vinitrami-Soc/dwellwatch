@@ -9,7 +9,7 @@ DwellWatch runs in two modes that share the same rules and the same Python code.
 
 ## Replay datasets
 
-`datasets/fetch.sh` fetches seventeen files from one pinned commit of attack_data
+`datasets/fetch.sh` fetches twenty files from one pinned commit of attack_data
 (`52c9d8a53167872293c9d0ca359b5166fb25e243`) and checks each one against a pinned SHA-256.
 Nothing it fetches is committed: `datasets/` is gitignored apart from the script.
 
@@ -24,6 +24,9 @@ Nothing it fetches is committed: `datasets/` is gitignored apart from the script
 | `T1021.002/atomic_red_team/windows-sysmon.log` | PsExec run against `\\localhost`, and PsExec run locally with `-s` to save a registry key as SYSTEM | 10 Sysmon | Attack and control: the remote PsExec fires; the local one does not |
 | `T1047/atomic_red_team/windows-sysmon.log` | Atomic Red Team T1047: wmic queries, `wmic /node: ... process call create`, local `wmic process call create`, plus a host's background activity | 6,571 Sysmon | Attack and control: only the process creation on a node fires |
 | `T1021.001/rdp_session_established/4624_10_logon.log` | RDP logons to two domain controllers | 16 Security | Attack: every RDP logon fires and names its account |
+| `T1486/dcrypt/windows-sysmon.log` | DiskCryptor downloaded, installed and run, as in Atomic Red Team's T1486 DiskCryptor test and Mamba ransomware | 343 Sysmon | Attack: each DiskCryptor binary fires; its installer stub does not |
+| `T1486/bitlocker_sus_commands/bitlocker_sus_commands.log` | `manage-bde -protectors -delete C:` | 1 Sysmon | Attack: it fires |
+| `T1486/sam_sam_note/windows-sysmon.log` | A SamSam ransom-note run whose Sysmon log holds no note, but does hold the Splunk forwarder writing its own `README.txt`, among 8,500 events | 8,491 Sysmon | Control: nothing fires |
 | `T1098/windows_multiple_passwords_changed/windows_multiple_passwords_changed.log` | An administrator resetting 40 accounts' passwords on a domain controller, with the PowerShell that did it | 345 (133 Security) | Attack: one stage 1 reset signal per reset, each naming the reset account |
 | `T1098/account_manipulation/xml-windows-security.log` | Accounts created, enabled and reset (21 resets), and four group adds: three to Domain Admins, one of them an account adding itself, and one to a workstation's `None` group | 430 Security | Attack and control: the Domain Admins adds fire; the `None` add, and 400 other account events, do not |
 | `T1098/dnsadmins_member_added/windows-security.log` | An account added to DnsAdmins, whose members can make the DNS service load code | 228 (173 Security) | Attack: the one add fires |
@@ -249,6 +252,29 @@ would fire on all of them), SharpRDP, a remote scheduled task, services
 installed remotely (System 7045), share access (5145), explicit-credential logons (4648), DCOM,
 processes WMI starts on the target (Conti's Cobalt Strike beacon among them), and a local
 pass-the-hash seen only as an NTLM network logon.
+
+### Stage 6 on real data
+
+The pinned files: DiskCryptor's two `dcrypt.exe` runs and `dcinst -setup` fire, its Inno Setup
+stub does not; the BitLocker protector deletion fires; the SamSam run, and the log forwarder's
+`README.txt` in it, stay quiet. attack_data holds no file encrypted with gpg, openssl or 7-Zip and
+no DwellWatch canary, so those rules are tested on planted events until the live lab runs.
+
+**On data the rules were not written against**, with one caveat: the file names in the
+ransomware recordings had already been printed by the stage 3 scan before the note rule was
+written, so this is not a blind test, and none of those names were added to the rule. The note
+rule caught **one family of seven**: 83 `HOW_TO_RESTORE_MY_FILES.txt` notes in a
+`ransomware_ttp` run, with no false positives. It missed Chaos (`read_it.txt`, 118 folders), Clop
+(`ClopReadMe.txt`, 245; `README_README.txt`, 40), Conti (`readme.txt`), LockBit
+(`<id>.README.txt`, 749), Prestige (`README`) and Ryuk (`RyukReadMe.html`, 71). Most families
+call the note some form of "readme", and so does ordinary software (the log forwarder wrote
+`README.txt` in three of these recordings), so matching more names would trade misses for false
+positives. What every one of these runs shares is volume: one process writing the same file name
+into dozens or hundreds of folders, or `System` doing it over SMB (932 `readme.txt` in
+one Conti run). That needs counting across events, and it is planned for the correlation engine
+(Phase 4), next to the canary files and Wazuh's file integrity monitoring in the live lab. No
+disk-encryption or command-line encryption tool appears in the unseen data, so those two rules
+have no unseen result.
 
 ### Tested on data the rules were not written against
 

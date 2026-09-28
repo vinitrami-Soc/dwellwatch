@@ -1,0 +1,59 @@
+title: Files Encrypted With A Command-Line Tool
+id: 2ae5d42f-d738-474f-8732-921676ca94df
+status: experimental
+description: |
+  Detects files being encrypted with a passphrase given on the command line: gpg in symmetric
+  batch mode, openssl's enc, or 7-Zip with a password and header encryption. Atomic Red Team's
+  T1486 tests, which the live lab uses to emulate encryption against dummy files, run gpg this
+  way, and some ransomware crews encrypt with the same tools rather than their own code. People
+  encrypting a file by hand usually let the tool prompt for the passphrase. DwellWatch stage 6
+  (encryption).
+references:
+  - https://attack.mitre.org/techniques/T1486/
+  - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1486/T1486.md
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.impact
+  - attack.t1486
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_gpg_binary:
+    - Image|endswith:
+        - '\gpg.exe'
+        - '\gpg2.exe'
+    - OriginalFileName: 'gpg.exe'
+  selection_gpg_symmetric:
+    CommandLine|contains:
+      - ' -c '
+      - ' --symmetric'
+  selection_gpg_passphrase:
+    CommandLine|contains: '--passphrase'
+  selection_openssl_binary:
+    - Image|endswith: '\openssl.exe'
+    - OriginalFileName: 'openssl.exe'
+  selection_openssl_encrypt:
+    CommandLine|contains|all:
+      - ' enc '
+      - ' -pass'
+  selection_7zip_binary:
+    - Image|endswith:
+        - '\7z.exe'
+        - '\7za.exe'
+    - OriginalFileName:
+        - '7z.exe'
+        - '7za.exe'
+  selection_7zip_encrypt:
+    CommandLine|contains|all:
+      - ' -p'
+      - ' -mhe'
+  condition: >-
+    (selection_gpg_binary and selection_gpg_symmetric and selection_gpg_passphrase)
+    or (selection_openssl_binary and selection_openssl_encrypt)
+    or (selection_7zip_binary and selection_7zip_encrypt)
+falsepositives:
+  - Backup and export scripts that encrypt archives with a passphrase in the command line;
+    7-Zip with -mhe is also how data is packed for exfiltration, which is an attack too.
+level: medium

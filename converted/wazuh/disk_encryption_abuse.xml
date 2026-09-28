@@ -1,0 +1,90 @@
+<!-- Disk Encryption Turned Against The Owner
+     Generated from sigma/stage6_encryption/disk_encryption_abuse.yml (f3bce9bd-e656-4e10-9642-66580d7eb2cf) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="106020" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}manage\-bde\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*\-protectors\ \-delete)|(?i:.*\ \-pw)|(?i:.*\ \-password)|(?i:.*\-forcerecovery))</field>
+    <description>DwellWatch stage 6: Disk Encryption Turned Against The Owner</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="106021" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:manage\-bde\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*\-protectors\ \-delete)|(?i:.*\ \-pw)|(?i:.*\ \-password)|(?i:.*\-forcerecovery))</field>
+    <description>DwellWatch stage 6: Disk Encryption Turned Against The Owner</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="106022" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*Remove\-BitLockerKeyProtector)|(?i:.*\-PasswordProtector))</field>
+    <description>DwellWatch stage 6: Disk Encryption Turned Against The Owner</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="106023" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}dcrypt\.exe$)|(?i:.*\\{1,2}dcinst\.exe$))</field>
+    <description>DwellWatch stage 6: Disk Encryption Turned Against The Owner</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="106024" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?:(?i:dcrypt\.exe$)|(?i:dcinst\.exe$))</field>
+    <description>DwellWatch stage 6: Disk Encryption Turned Against The Owner</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="106025" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}manage\-bde\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*\-protectors\ \-delete)|(?i:.*\ \-pw)|(?i:.*\ \-password)|(?i:.*\-forcerecovery))</field>
+    <description>DwellWatch stage 6: Disk Encryption Turned Against The Owner</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="106026" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?:(?i:.*Remove\-BitLockerKeyProtector)|(?i:.*\-PasswordProtector))</field>
+    <description>DwellWatch stage 6: Disk Encryption Turned Against The Owner</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="106027" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}dcrypt\.exe$)|(?i:.*\\{1,2}dcinst\.exe$))</field>
+    <description>DwellWatch stage 6: Disk Encryption Turned Against The Owner</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+</group>

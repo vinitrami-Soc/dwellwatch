@@ -1,0 +1,29 @@
+title: DwellWatch Canary File Touched
+id: 85e8264b-a5fb-4325-9100-cf656f61221e
+status: experimental
+description: |
+  Detects any process creating or overwriting a file whose name carries the DwellWatch canary
+  token: an encrypted copy of a canary (dwellwatch-canary-q3-budget.xlsx.lockbit), the canary
+  overwritten in place with new content, or a copy of it. The live lab places canary documents in
+  the file shares ransomware reaches first; nothing legitimate writes to them, so any write is an
+  alert whatever the ransomware family and whatever it names its files. In-place changes that do
+  not recreate the file are seen by Wazuh's file integrity monitoring on the same paths, not by
+  Sysmon. DwellWatch stage 6 (encryption).
+references:
+  - https://attack.mitre.org/techniques/T1486/
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.impact
+  - attack.t1486
+logsource:
+  category: file_event
+  product: windows
+detection:
+  selection:
+    TargetFilename|contains: 'dwellwatch-canary'
+  condition: selection
+falsepositives:
+  - Backup software copying the canaries. Exclude the backup agent's process, or keep the
+    canaries out of backed-up paths.
+level: critical

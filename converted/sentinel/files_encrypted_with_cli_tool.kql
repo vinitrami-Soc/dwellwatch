@@ -1,0 +1,4 @@
+// Files Encrypted With A Command-Line Tool
+// Generated from sigma/stage6_encryption/files_encrypted_with_cli_tool.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where (((TargetProcessName endswith "\\gpg.exe" or TargetProcessName endswith "\\gpg2.exe") or TargetProcessFileOriginalName =~ "gpg.exe") and (TargetProcessCommandLine contains " -c " or TargetProcessCommandLine contains " --symmetric") and TargetProcessCommandLine contains "--passphrase") or ((TargetProcessName endswith "\\openssl.exe" or TargetProcessFileOriginalName =~ "openssl.exe") and (TargetProcessCommandLine contains " enc " and TargetProcessCommandLine contains " -pass")) or (((TargetProcessName endswith "\\7z.exe" or TargetProcessName endswith "\\7za.exe") or (TargetProcessFileOriginalName in~ ("7z.exe", "7za.exe"))) and (TargetProcessCommandLine contains " -p" and TargetProcessCommandLine contains " -mhe"))

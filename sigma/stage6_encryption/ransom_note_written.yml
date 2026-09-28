@@ -1,0 +1,46 @@
+title: Ransom Note Written
+id: 28e71081-01cb-406d-9be9-143888773526
+status: experimental
+description: |
+  Detects a file being written whose name follows the conventions ransom notes share across
+  families: telling the victim how to decrypt, restore or recover "your files" (HOW_TO_DECRYPT,
+  RESTORE_MY_FILES, YOUR_FILES.txt, _readme.txt and similar), as a text, HTML or HTA page. By the
+  time a note is written, encryption has started; this is the backstop, not the early warning.
+  Note names change from family to family, so this rule will miss new ones; the canary rule does
+  not depend on names. DwellWatch stage 6 (encryption).
+references:
+  - https://attack.mitre.org/techniques/T1486/
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.impact
+  - attack.t1486
+logsource:
+  category: file_event
+  product: windows
+detection:
+  selection_name:
+    TargetFilename|contains:
+      - 'decrypt'
+      - 'how_to_'
+      - 'how-to-'
+      - 'restore_my_files'
+      - 'restore-my-files'
+      - 'recover_my_files'
+      - 'recover-my-files'
+      - 'your_files'
+      - 'your-files'
+      - '\_readme.txt' # STOP/Djvu
+      - '\!readme'
+      - '\readme!'
+  selection_page:
+    TargetFilename|endswith:
+      - '.txt'
+      - '.html'
+      - '.htm'
+      - '.hta'
+  condition: all of selection_*
+falsepositives:
+  - Documentation that happens to be named like a note ("How_to_install.txt", a decryption
+    tool's own readme). Rare on user and server file shares, where ransom notes land.
+level: high

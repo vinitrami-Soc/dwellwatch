@@ -1,0 +1,1 @@
+TargetFilename IN ("*decrypt*", "*how_to_*", "*how-to-*", "*restore_my_files*", "*restore-my-files*", "*recover_my_files*", "*recover-my-files*", "*your_files*", "*your-files*", "*\\_readme.txt*", "*\\!readme*", "*\\readme!*") TargetFilename IN ("*.txt", "*.html", "*.htm", "*.hta")

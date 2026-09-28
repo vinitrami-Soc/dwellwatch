@@ -1,0 +1,14 @@
+<!-- DwellWatch Canary File Touched
+     Generated from sigma/stage6_encryption/canary_file_touched.yml (85e8264b-a5fb-4325-9100-cf656f61221e) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 11 -->
+  <rule id="106010" level="15">
+    <if_group>sysmon_event_11</if_group>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?s)^(?i:.*dwellwatch\-canary)</field>
+    <description>DwellWatch stage 6: DwellWatch Canary File Touched</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>dwellwatch_stage6,</group>
+  </rule>
+</group>

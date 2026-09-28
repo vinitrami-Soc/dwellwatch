@@ -35,6 +35,9 @@ datasets/attack_techniques/T1003.006/impacket/windows-security-xml.log          
 datasets/attack_techniques/T1021.002/atomic_red_team/windows-sysmon.log              39685d672931f6da05918b8bbdd7f359c90feb73d6b02eb26a331aa60512f5d0
 datasets/attack_techniques/T1047/atomic_red_team/windows-sysmon.log                  64651720e10813aa57d0f25ce149005ab06039b1974dbc09818b1fb45fbbc196
 datasets/attack_techniques/T1021.001/rdp_session_established/4624_10_logon.log       03a9cef0403dda73c10b0b27f051e39d9dd7b3ab05514c59b1ef11fef60c56df
+datasets/attack_techniques/T1486/dcrypt/windows-sysmon.log                           c70b712dbfa68c6d1e982f032b386cf8dcaae031b34e380fdb875df4d9c838d3
+datasets/attack_techniques/T1486/bitlocker_sus_commands/bitlocker_sus_commands.log   9e1e4b875d2ae27e4b2c99e6403cf2f642d087f415af2a06c0b63e0556110002
+datasets/attack_techniques/T1486/sam_sam_note/windows-sysmon.log                     ffb8daf49a0cfbfe4514eba0f340580ac88e0055a313c4880e64b251bf6da208
 "
 
 sha256() {

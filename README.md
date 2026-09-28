@@ -14,11 +14,10 @@
   <img alt="Mapped to MITRE ATT&CK" src="https://img.shields.io/badge/mapped%20to-MITRE%20ATT%26CK-c00">
 </p>
 
-> **Status: in progress.** Phases 0 to 2 are done: the replay engine and six rules for stage 5
-> (backup destruction), tested on real Atomic Red Team and ransomware telemetry and converted for
-> Wazuh, Splunk and Sentinel. Phase 3 is under way: stages 1 to 4 (help-desk reset abuse, remote
-> tooling and discovery, credential theft, lateral movement) are done; stage 6, correlation and
-> the metric are still to come. See the [roadmap](#roadmap).
+> **Status: in progress.** Phases 0 to 3 are done: the replay engine, 26 Sigma rules across all
+> six stages, tested on real Atomic Red Team, ransomware and attack-sample telemetry and converted
+> for Wazuh, Splunk and Sentinel. Correlation, the dwell-time metric, the IntelPulse webhook and
+> the help-desk pages are still to come. See the [roadmap](#roadmap).
 
 **Headline metric:** _not measured yet._ Once the chain has been emulated, this line will read
 "First alert fired N minutes before encryption in X of Y emulated runs", with the denominator and
@@ -54,7 +53,7 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 3 | Credential theft | Copies the AD database or reads LSASS | Sysmon 10 (access to lsass), 11 (dump files, NTDS.dit copies); process creation for dump and copy commands; Security 4662 with replication rights | T1003.001, T1003.002, T1003.003, T1003.006 |
 | 4 | Lateral movement | Moves host to host with the stolen account | Security 4624 logon types 9 and 10; process creation for PsExec, Impacket and remote WMI | T1021.001, T1021.002, T1047, T1550.002 |
 | 5 | Backup destruction | Deletes shadow copies and backups before encrypting | Sysmon 1: vssadmin, wbadmin, bcdedit, diskshadow, wmic, reagentc | T1490 |
-| 6 | Encryption (backstop) | Mass file changes, ransom notes | Wazuh FIM burst; canary file modification | T1486 |
+| 6 | Encryption (backstop) | Mass file changes, ransom notes | Sysmon 11 (notes, canary files); disk and file encryption commands; in the live lab, Wazuh FIM on the canaries | T1486 |
 
 ## Detections so far
 
@@ -76,6 +75,10 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 4 | [Process Started On Another Host With WMI](sigma/stage4_lateral_movement/wmi_remote_process.yml) | `wmic /node: process call create`, `Invoke-WmiMethod`/`Invoke-CimMethod` with `-ComputerName` |
 | 4 | [Remote Desktop Logon](sigma/stage4_lateral_movement/rdp_logon.yml) | every RDP logon (4624 type 10); a weak signal for correlation |
 | 4 | [Logon With Credentials Injected For Another Account](sigma/stage4_lateral_movement/pass_the_hash_logon.yml) | the type 9 `seclogo` logon that pass-the-hash leaves on the attacker's machine |
+| 6 | [Ransom Note Written](sigma/stage6_encryption/ransom_note_written.yml) | a page named like a ransom note (`HOW_TO_DECRYPT`, `RESTORE_MY_FILES`, `YOUR_FILES.txt`) |
+| 6 | [DwellWatch Canary File Touched](sigma/stage6_encryption/canary_file_touched.yml) | any write to a file carrying the canary token |
+| 6 | [Disk Encryption Turned Against The Owner](sigma/stage6_encryption/disk_encryption_abuse.yml) | BitLocker protectors deleted or password-locked, DiskCryptor |
+| 6 | [Files Encrypted With A Command-Line Tool](sigma/stage6_encryption/files_encrypted_with_cli_tool.yml) | gpg, openssl or 7-Zip encrypting with a passphrase on the command line |
 | 5 | [Shadow Copies Deleted With vssadmin](sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml) | `vssadmin delete shadows` |
 | 5 | [Backup Catalogue Deleted With wbadmin](sigma/stage5_backup_destruction/wbadmin_delete_catalog.yml) | `wbadmin delete catalog` |
 | 5 | [Windows Recovery Disabled With bcdedit](sigma/stage5_backup_destruction/bcdedit_recovery_disabled.yml) | `bcdedit ... recoveryenabled no`, `bootstatuspolicy ignoreallfailures` |
@@ -106,6 +109,12 @@ Stage 4 is deliberately narrow, and its unseen-data result says so plainly. Its 
 PsExec, Impacket's wmiexec and dcomexec, mimikatz's pass-the-hash and RDP tunnelling in
 EVTX-ATTACK-SAMPLES, but not WinRM, PowerShell remoting, SharpRDP, remote services or tasks,
 DCOM or target-side WMI. Correlation is what connects such movement to the stages around it.
+
+Stage 6 is the backstop. Its rules fire on DiskCryptor and BitLocker abuse in attack_data and stay
+quiet on ordinary READMEs. Honestly scored, the ransom-note rule caught one ransomware family of
+seven in the unseen recordings: most notes are named "readme", like ordinary documentation. What
+all seven share is one process writing the same note into many folders, which the correlation
+engine (Phase 4) will count; the canary files are the dependable backstop in the live lab.
 
 For stage 5, the Atomic Red Team T1490 run from attack_data (285 events) raises exactly
 one alert per targeted command, 6 in all, and none for the `cmd.exe` processes that launched them.
@@ -163,7 +172,7 @@ express, and the converter problems found on the way, are in the
 - [x] **Phase 0:** repository scaffold, data model, CI
 - [x] **Phase 1:** replay engine and the first detections (stage 5, backup destruction)
 - [x] **Phase 2:** conversion to Wazuh, SPL and KQL
-- [ ] **Phase 3:** rules for stages 1 to 4 and 6 (stages 1 to 4 done)
+- [x] **Phase 3:** rules for stages 1 to 4 and 6
 - [ ] **Phase 4:** the correlation engine
 - [ ] **Phase 5:** the dwell-time metric
 - [ ] **Phase 6:** IntelPulse webhook integration
@@ -186,7 +195,7 @@ docs/             lab architecture, threat model, detection catalogue, method
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-datasets/fetch.sh          # about 53 MB of real telemetry; without it the real-data tests skip
+datasets/fetch.sh          # about 69 MB of real telemetry; without it the real-data tests skip
 ruff check
 pytest
 python -m dwellwatch.convert   # after changing a rule: regenerate converted/ (make convert)

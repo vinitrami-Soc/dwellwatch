@@ -35,3 +35,9 @@ b4a9f257-7282-4323-a97f-9560d2fdccaa: 105000 # vssadmin_shadow_delete
 33b943df-d8c6-43cc-b49d-c72a5c2cced2: 105030 # wmic_shadowcopy_delete
 41271189-187d-4862-aaf8-f22ce19667a0: 105040 # powershell_shadowcopy_delete
 1f2a159b-60e6-4315-a6a4-f3f1a4413f4d: 105050 # powershell_encoded_shadowcopy_delete
+
+# stage 6: encryption
+28e71081-01cb-406d-9be9-143888773526: 106000 # ransom_note_written
+85e8264b-a5fb-4325-9100-cf656f61221e: 106010 # canary_file_touched
+f3bce9bd-e656-4e10-9642-66580d7eb2cf: 106020 # disk_encryption_abuse
+2ae5d42f-d738-474f-8732-921676ca94df: 106030 # files_encrypted_with_cli_tool

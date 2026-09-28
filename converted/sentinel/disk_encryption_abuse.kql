@@ -1,0 +1,4 @@
+// Disk Encryption Turned Against The Owner
+// Generated from sigma/stage6_encryption/disk_encryption_abuse.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where ((TargetProcessName endswith "\\manage-bde.exe" or TargetProcessFileOriginalName =~ "manage-bde.exe") and (TargetProcessCommandLine contains "-protectors -delete" or TargetProcessCommandLine contains " -pw" or TargetProcessCommandLine contains " -password" or TargetProcessCommandLine contains "-forcerecovery")) or (TargetProcessCommandLine contains "Remove-BitLockerKeyProtector" or TargetProcessCommandLine contains "-PasswordProtector") or ((TargetProcessName endswith "\\dcrypt.exe" or TargetProcessName endswith "\\dcinst.exe") or (TargetProcessFileOriginalName in~ ("dcrypt.exe", "dcinst.exe")))

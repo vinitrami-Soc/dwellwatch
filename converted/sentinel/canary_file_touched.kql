@@ -1,0 +1,4 @@
+// DwellWatch Canary File Touched
+// Generated from sigma/stage6_encryption/canary_file_touched.yml by dwellwatch.convert; do not edit.
+imFileEvent
+| where TargetFilePath contains "dwellwatch-canary"

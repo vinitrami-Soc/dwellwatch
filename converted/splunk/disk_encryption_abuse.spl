@@ -1,0 +1,1 @@
+(Image="*\\manage-bde.exe" OR OriginalFileName="manage-bde.exe" CommandLine IN ("*-protectors -delete*", "* -pw*", "* -password*", "*-forcerecovery*")) OR CommandLine IN ("*Remove-BitLockerKeyProtector*", "*-PasswordProtector*") OR Image IN ("*\\dcrypt.exe", "*\\dcinst.exe") OR OriginalFileName IN ("dcrypt.exe", "dcinst.exe")

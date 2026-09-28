@@ -1,0 +1,1 @@
+(Image IN ("*\\gpg.exe", "*\\gpg2.exe") OR OriginalFileName="gpg.exe" CommandLine IN ("* -c *", "* --symmetric*") CommandLine="*--passphrase*") OR (Image="*\\openssl.exe" OR OriginalFileName="openssl.exe" CommandLine="* enc *" CommandLine="* -pass*") OR (Image IN ("*\\7z.exe", "*\\7za.exe") OR OriginalFileName IN ("7z.exe", "7za.exe") CommandLine="* -p*" CommandLine="* -mhe*")

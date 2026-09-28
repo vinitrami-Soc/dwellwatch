@@ -246,11 +246,15 @@ PLANTED = [
     security_event(4624, LogonType="10", TargetUserName="jdoe", TargetDomainName="LAB"),
     security_event(4624, LogonType="3", TargetUserName="jdoe", TargetDomainName="LAB"),
     security_event(4624, LogonType="9", LogonProcessName="seclogo", TargetUserName="jdoe", TargetDomainName="LAB"),
+    sysmon_event(11, Image="C:\\Tools\\x.exe", TargetFilename="C:\\Shares\\HOW_TO_DECRYPT.txt"),
+    sysmon_event(11, Image="C:\\Tools\\x.exe", TargetFilename="C:\\Shares\\dwellwatch-canary-a.xlsx.enc"),
+    process_event("manage-bde -protectors -delete C:", "C:\\Windows\\System32\\manage-bde.exe"),
+    process_event("manage-bde -status", "C:\\Windows\\System32\\manage-bde.exe"),
 ]
 
 
 def test_wazuh_agrees_with_replay_on_planted_events():
-    assert assert_wazuh_agrees_with_replay(PLANTED) == 22
+    assert assert_wazuh_agrees_with_replay(PLANTED) == 25
 
 
 @pytest.mark.parametrize("relative, alerts", [
@@ -271,6 +275,9 @@ def test_wazuh_agrees_with_replay_on_planted_events():
     ("T1021.002/atomic_red_team/windows-sysmon.log", 1),
     ("T1047/atomic_red_team/windows-sysmon.log", 1),
     ("T1021.001/rdp_session_established/4624_10_logon.log", 16),
+    ("T1486/dcrypt/windows-sysmon.log", 3),
+    ("T1486/bitlocker_sus_commands/bitlocker_sus_commands.log", 1),
+    ("T1486/sam_sam_note/windows-sysmon.log", 0),
 ])
 def test_wazuh_agrees_with_replay_on_real_events(relative, alerts):
     assert assert_wazuh_agrees_with_replay(load_events(dataset(relative))) == alerts

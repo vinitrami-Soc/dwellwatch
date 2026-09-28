@@ -1,0 +1,49 @@
+title: Disk Encryption Turned Against The Owner
+id: f3bce9bd-e656-4e10-9642-66580d7eb2cf
+status: experimental
+description: |
+  Detects whole-disk encryption tools used the way ransomware uses them: BitLocker's key
+  protectors deleted, a password protector added, or the drive forced into recovery (manage-bde or
+  PowerShell's BitLocker cmdlets), and DiskCryptor installed or run (the tool behind Mamba and
+  Atomic Red Team's T1486 DiskCryptor test). Enterprise BitLocker deployments protect with the TPM
+  and recovery keys, not with passwords typed on a command line. DwellWatch stage 6 (encryption).
+references:
+  - https://attack.mitre.org/techniques/T1486/
+  - https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/manage-bde
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.impact
+  - attack.t1486
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_manage_bde_binary:
+    - Image|endswith: '\manage-bde.exe'
+    - OriginalFileName: 'manage-bde.exe'
+  selection_manage_bde_abuse:
+    CommandLine|contains:
+      - '-protectors -delete'
+      - ' -pw'
+      - ' -password'
+      - '-forcerecovery'
+  selection_powershell_bitlocker:
+    CommandLine|contains:
+      - 'Remove-BitLockerKeyProtector'
+      - '-PasswordProtector'
+  selection_diskcryptor:
+    - Image|endswith:
+        - '\dcrypt.exe'
+        - '\dcinst.exe'
+    - OriginalFileName:
+        - 'dcrypt.exe'
+        - 'dcinst.exe'
+  condition: >-
+    (selection_manage_bde_binary and selection_manage_bde_abuse)
+    or selection_powershell_bitlocker
+    or selection_diskcryptor
+falsepositives:
+  - Administrators rotating BitLocker protectors by hand, or using DiskCryptor on purpose. Both
+    are rare on managed Windows estates.
+level: high
