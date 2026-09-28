@@ -14,8 +14,9 @@
   <img alt="Mapped to MITRE ATT&CK" src="https://img.shields.io/badge/mapped%20to-MITRE%20ATT%26CK-c00">
 </p>
 
-> **Status: in progress.** Phase 0 is done: the repository, data model and CI. There are no
-> detection rules yet, so nothing below is a result. See the [roadmap](#roadmap).
+> **Status: in progress.** Phases 0 and 1 are done: the replay engine and the first three rules
+> (stage 5, backup destruction), tested on real Atomic Red Team telemetry. Stages 1 to 4 and 6,
+> correlation and the metric are still to come. See the [roadmap](#roadmap).
 
 **Headline metric:** _not measured yet._ Once the chain has been emulated, this line will read
 "First alert fired N minutes before encryption in X of Y emulated runs", with the denominator and
@@ -53,6 +54,20 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 5 | Backup destruction | Deletes shadow copies and backups before encrypting | Sysmon 1: vssadmin, wbadmin, bcdedit, diskshadow, wmic, reagentc | T1490 |
 | 6 | Encryption (backstop) | Mass file changes, ransom notes | Wazuh FIM burst; canary file modification | T1486 |
 
+## Detections so far
+
+| Stage | Rule | Fires on |
+|---|---|---|
+| 5 | [Shadow Copies Deleted With vssadmin](sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml) | `vssadmin delete shadows` |
+| 5 | [Backup Catalogue Deleted With wbadmin](sigma/stage5_backup_destruction/wbadmin_delete_catalog.yml) | `wbadmin delete catalog` |
+| 5 | [Windows Recovery Disabled With bcdedit](sigma/stage5_backup_destruction/bcdedit_recovery_disabled.yml) | `bcdedit ... recoveryenabled no`, `bootstatuspolicy ignoreallfailures` |
+
+On real data from Splunk's attack_data, the Atomic Red Team T1490 run (285 events) raises exactly
+one alert per targeted command, 4 in all, and none for the `cmd.exe` processes that launched them.
+A 7,010-event T1003.003 run, which uses vssadmin and wmic to *create* shadow copies, raises none.
+The same T1490 run also deletes shadow copies with wmic and PowerShell, and no rule covers those
+yet. Details and the exact commands are in [docs/lab-architecture.md](docs/lab-architecture.md).
+
 ## When a signal becomes an incident
 
 One `vssadmin delete shadows` on its own might be an administrator. A password reset, then NTDS.dit
@@ -63,17 +78,19 @@ This is risk-based alerting: individual rules stay sensitive, and correlation ke
 
 ## How it runs
 
-- **Replay mode** runs the rules offline against pre-recorded datasets
-  ([Splunk attack_data](https://github.com/splunk/attack_data),
-  [EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES)). It needs no virtual
-  machines, works on a 16 GB laptop and is what CI runs.
-- **Live mode** runs [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) tests on
-  lab VMs (domain controller, Windows 11, Wazuh manager) and detects them in Wazuh.
+- **Replay mode** runs the rules offline against recorded Windows event logs, today from
+  [Splunk attack_data](https://github.com/splunk/attack_data), fetched at a pinned commit and
+  checked against pinned SHA-256 hashes. It needs no virtual machines, works on a 16 GB laptop
+  and is what CI runs.
+- **Live mode** (planned) runs [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team)
+  tests on lab VMs (domain controller, Windows 11, Wazuh manager) and detects them in Wazuh.
+
+See [docs/lab-architecture.md](docs/lab-architecture.md) for both.
 
 ## Roadmap
 
 - [x] **Phase 0:** repository scaffold, data model, CI
-- [ ] **Phase 1:** replay engine and the first detections (stage 5, backup destruction)
+- [x] **Phase 1:** replay engine and the first detections (stage 5, backup destruction)
 - [ ] **Phase 2:** pySigma conversion to Wazuh, SPL and KQL
 - [ ] **Phase 3:** rules for stages 1 to 4 and 6
 - [ ] **Phase 4:** the correlation engine
@@ -98,8 +115,12 @@ docs/             lab architecture, threat model, detection catalogue, method
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
+datasets/fetch.sh          # about 13 MB of real telemetry; without it the real-data tests skip
 ruff check
 pytest
+
+# replay any Windows event XML or evtx_dump JSON Lines file through the rules
+python -m dwellwatch.replay datasets/attack_data/datasets/attack_techniques/T1490/atomic_red_team/windows-sysmon.log
 ```
 
 ## Safety

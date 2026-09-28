@@ -24,7 +24,6 @@ env/
 
 # Replay datasets are fetched, not committed (datasets/fetch.sh)
 datasets/*
-!datasets/.gitkeep
 !datasets/fetch.sh
 
 # Editors and OS

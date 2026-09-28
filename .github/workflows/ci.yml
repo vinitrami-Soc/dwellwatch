@@ -27,6 +27,12 @@ jobs:
       - name: Install
         run: python -m pip install -e ".[dev]"
       - name: Lint
-        run: ruff check
-      - name: Tests
+        run: |
+          ruff check
+          shellcheck datasets/fetch.sh
+      - name: Fetch replay datasets
+        run: datasets/fetch.sh
+      - name: Tests, including the rules-on-real-data gate
+        env:
+          DWELLWATCH_REQUIRE_DATASETS: "1" # a missing dataset fails instead of skipping
         run: pytest

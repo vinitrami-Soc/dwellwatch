@@ -21,13 +21,13 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Security",
 ]
-dependencies = []
+# replay parses the Sigma rules with pySigma, so it is needed at run time
+dependencies = ["pysigma>=1.0,<2"]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
     "ruff>=0.6",
-    "pysigma>=1.0,<2",
     "pysigma-backend-splunk>=2.0,<3",
     # Sentinel and Defender XDR KQL; supersedes pysigma-backend-microsoft365defender
     "pysigma-backend-kusto>=1.0,<2",
@@ -58,3 +58,4 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["dwellwatch"]
+known-local-folder = ["conftest"]

@@ -1,0 +1,31 @@
+title: Shadow Copies Deleted With vssadmin
+id: b4a9f257-7282-4323-a97f-9560d2fdccaa
+status: experimental
+description: |
+  Detects vssadmin deleting volume shadow copies. Ransomware operators do this in the
+  last step before encryption so that the victim cannot roll files back from Previous
+  Versions. DwellWatch stage 5 (backup destruction).
+references:
+  - https://attack.mitre.org/techniques/T1490/
+  - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1490/T1490.md
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.impact
+  - attack.t1490
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_img:
+    - Image|endswith: '\vssadmin.exe'
+    - OriginalFileName: 'VSSADMIN.EXE' # still matches if the binary is renamed
+  selection_cli:
+    CommandLine|contains|all:
+      - 'delete'
+      - 'shadows'
+  condition: all of selection_*
+falsepositives:
+  - Backup software or an administrator pruning old shadow copies (for example with /oldest)
+    during maintenance. Expect it rarely, from a known account, inside a change window.
+level: high

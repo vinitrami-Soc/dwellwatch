@@ -1,0 +1,32 @@
+title: Windows Recovery Disabled With bcdedit
+id: 6604e459-a5eb-4786-8ef7-b3cf44f97489
+status: experimental
+description: |
+  Detects bcdedit turning off automatic recovery (recoveryenabled no) or telling the boot
+  manager to ignore boot failures (bootstatuspolicy ignoreallfailures). Ransomware
+  operators do this so that the victim cannot boot into the Windows Recovery Environment
+  to repair or restore the machine. DwellWatch stage 5 (backup destruction).
+references:
+  - https://attack.mitre.org/techniques/T1490/
+  - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1490/T1490.md
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.impact
+  - attack.t1490
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_img:
+    - Image|endswith: '\bcdedit.exe'
+    - OriginalFileName: 'bcdedit.exe' # still matches if the binary is renamed
+  selection_cli:
+    # bcdedit accepts no/off/false/0 for a boolean; a plain "contains no" would be too loose
+    - CommandLine|re|i: 'recoveryenabled\s+"?(no|off|false|0)\b'
+    - CommandLine|re|i: 'bootstatuspolicy\s+"?ignoreallfailures'
+  condition: all of selection_*
+falsepositives:
+  - Kiosk or lab images that suppress the recovery screen on purpose. These are set once
+    when the image is built, not on a running server.
+level: high

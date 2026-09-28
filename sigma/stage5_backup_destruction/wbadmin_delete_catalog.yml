@@ -1,0 +1,31 @@
+title: Backup Catalogue Deleted With wbadmin
+id: 529b5849-1e91-435b-8448-4804d93ca54e
+status: experimental
+description: |
+  Detects wbadmin deleting the Windows Server Backup catalogue. Without the catalogue
+  the existing backups cannot be listed or restored from the machine, so ransomware
+  operators delete it alongside shadow copies. DwellWatch stage 5 (backup destruction).
+references:
+  - https://attack.mitre.org/techniques/T1490/
+  - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1490/T1490.md
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.impact
+  - attack.t1490
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_img:
+    - Image|endswith: '\wbadmin.exe'
+    - OriginalFileName: 'WBADMIN.EXE' # still matches if the binary is renamed
+  selection_cli:
+    CommandLine|contains|all:
+      - 'delete'
+      - 'catalog'
+  condition: all of selection_*
+falsepositives:
+  - An administrator deleting a corrupted catalogue before rebuilding it, which Microsoft
+    documents as a recovery step. It should be rare and tied to a ticket.
+level: high
