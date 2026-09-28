@@ -1,0 +1,13 @@
+# Wazuh rule IDs for the Sigma rules. Wazuh needs a stable number for every rule, in the range
+# it keeps for local rules (100000 to 119999). Each Sigma rule gets a block of ten, one per Wazuh
+# rule it expands into (per event source and per branch of its condition). Stage N uses 10N000 to
+# 10N990. Add a line when you add a rule; never reuse or renumber a block, because alerts and any
+# Wazuh rules built on top of these refer to the numbers.
+
+# stage 5: backup destruction
+b4a9f257-7282-4323-a97f-9560d2fdccaa: 105000 # vssadmin_shadow_delete
+529b5849-1e91-435b-8448-4804d93ca54e: 105010 # wbadmin_delete_catalog
+6604e459-a5eb-4786-8ef7-b3cf44f97489: 105020 # bcdedit_recovery_disabled
+33b943df-d8c6-43cc-b49d-c72a5c2cced2: 105030 # wmic_shadowcopy_delete
+41271189-187d-4862-aaf8-f22ce19667a0: 105040 # powershell_shadowcopy_delete
+1f2a159b-60e6-4315-a6a4-f3f1a4413f4d: 105050 # powershell_encoded_shadowcopy_delete

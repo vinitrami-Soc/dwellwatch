@@ -1,0 +1,4 @@
+// Shadow Copies Deleted With vssadmin
+// Generated from sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where (TargetProcessName endswith "\\vssadmin.exe" or TargetProcessFileOriginalName =~ "VSSADMIN.EXE") and (TargetProcessCommandLine contains "delete" and TargetProcessCommandLine contains "shadows")

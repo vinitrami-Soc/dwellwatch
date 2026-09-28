@@ -31,11 +31,12 @@ detection:
   selection_class:
     CommandLine|contains: 'win32_shadowcopy'
   selection_delete:
-    - CommandLine|contains:
-        - '.Delete('
-        - 'Remove-WmiObject'
-        - 'Remove-CimInstance'
-    - CommandLine|re|i: '\b(rwmi|rcim)\b' # the short aliases of the two cmdlets
+    CommandLine|contains:
+      - '.Delete('
+      - 'Remove-WmiObject'
+      - 'Remove-CimInstance'
+      - 'rwmi' # the short aliases of the two cmdlets
+      - 'rcim'
   condition: all of selection_*
 falsepositives:
   - An administrator clearing old shadow copies from PowerShell. Rare, and it should come

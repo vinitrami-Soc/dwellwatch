@@ -1,0 +1,4 @@
+// Backup Catalogue Deleted With wbadmin
+// Generated from sigma/stage5_backup_destruction/wbadmin_delete_catalog.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where (TargetProcessName endswith "\\wbadmin.exe" or TargetProcessFileOriginalName =~ "WBADMIN.EXE") and (TargetProcessCommandLine contains "delete" and TargetProcessCommandLine contains "catalog")

@@ -22,9 +22,9 @@ detection:
     - Image|endswith: '\bcdedit.exe'
     - OriginalFileName: 'bcdedit.exe' # still matches if the binary is renamed
   selection_cli:
-    # bcdedit accepts no/off/false/0 for a boolean; a plain "contains no" would be too loose
-    - CommandLine|re|i: 'recoveryenabled\s+"?(no|off|false|0)\b'
-    - CommandLine|re|i: 'bootstatuspolicy\s+"?ignoreallfailures'
+    # bcdedit accepts no/off/false/0 for a boolean; a plain "contains no" would be too loose.
+    # One regex, not two ORed ones: pySigma's Splunk backend cannot express a regex inside an OR.
+    CommandLine|re|i: 'recoveryenabled\s+"?(no|off|false|0)\b|bootstatuspolicy\s+"?ignoreallfailures'
   condition: all of selection_*
 falsepositives:
   - Kiosk or lab images that suppress the recovery screen on purpose. These are set once

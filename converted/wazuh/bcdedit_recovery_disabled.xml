@@ -1,0 +1,38 @@
+<!-- Windows Recovery Disabled With bcdedit
+     Generated from sigma/stage5_backup_destruction/bcdedit_recovery_disabled.yml (6604e459-a5eb-4786-8ef7-b3cf44f97489) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="105020" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?i:.*\\{1,2}bcdedit\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*?(?:recoveryenabled\s+(?:\\?")?(no|off|false|0)\b|bootstatuspolicy\s+(?:\\?")?ignoreallfailures))</field>
+    <description>DwellWatch stage 5: Windows Recovery Disabled With bcdedit</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="105021" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?i:bcdedit\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*?(?:recoveryenabled\s+(?:\\?")?(no|off|false|0)\b|bootstatuspolicy\s+(?:\\?")?ignoreallfailures))</field>
+    <description>DwellWatch stage 5: Windows Recovery Disabled With bcdedit</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="105022" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?i:.*\\{1,2}bcdedit\.exe$)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?i:.*?(?:recoveryenabled\s+(?:\\?")?(no|off|false|0)\b|bootstatuspolicy\s+(?:\\?")?ignoreallfailures))</field>
+    <description>DwellWatch stage 5: Windows Recovery Disabled With bcdedit</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+</group>

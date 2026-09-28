@@ -1,0 +1,2 @@
+Image="*\\bcdedit.exe" OR OriginalFileName="bcdedit.exe"
+| regex CommandLine="(?i)recoveryenabled\\s+\"?(no|off|false|0)\\b|bootstatuspolicy\\s+\"?ignoreallfailures"

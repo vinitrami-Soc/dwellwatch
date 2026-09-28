@@ -1,0 +1,41 @@
+<!-- Shadow Copies Deleted With Encoded PowerShell
+     Generated from sigma/stage5_backup_destruction/powershell_encoded_shadowcopy_delete.yml (1f2a159b-60e6-4315-a6a4-f3f1a4413f4d) by dwellwatch.convert; do not edit. -->
+<group name="dwellwatch,">
+  <!-- Sysmon event 1 -->
+  <rule id="105050" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?s)^(?:(?i:.*\\{1,2}powershell\.exe$)|(?i:.*\\{1,2}pwsh\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?:(?i:.*VwBpAG4AMwAyAF8AUwBoAGEAZABvAHcAYwBvAHAAeQ)|(?i:.*cAaQBuADMAMgBfAFMAaABhAGQAbwB3AGMAbwBwAHkA)|(?i:.*XAGkAbgAzADIAXwBTAGgAYQBkAG8AdwBjAG8AcAB5A))|(?:(?i:.*VwBpAG4AMwAyAF8AUwBoAGEAZABvAHcAQwBvAHAAeQ)|(?i:.*cAaQBuADMAMgBfAFMAaABhAGQAbwB3AEMAbwBwAHkA)|(?i:.*XAGkAbgAzADIAXwBTAGgAYQBkAG8AdwBDAG8AcAB5A))|(?:(?i:.*dwBpAG4AMwAyAF8AcwBoAGEAZABvAHcAYwBvAHAAeQ)|(?i:.*cAaQBuADMAMgBfAHMAaABhAGQAbwB3AGMAbwBwAHkA)|(?i:.*3AGkAbgAzADIAXwBzAGgAYQBkAG8AdwBjAG8AcAB5A))))(?=(?:(?:(?i:.*LgBEAGUAbABlAHQAZQAoA)|(?i:.*4ARABlAGwAZQB0AGUAKA)|(?i:.*uAEQAZQBsAGUAdABlACgA))|(?:(?i:.*LgBkAGUAbABlAHQAZQAoA)|(?i:.*4AZABlAGwAZQB0AGUAKA)|(?i:.*uAGQAZQBsAGUAdABlACgA))|(?:(?i:.*UgBlAG0AbwB2AGUALQBXAG0AaQBPAGIAagBlAGMAdA)|(?i:.*IAZQBtAG8AdgBlAC0AVwBtAGkATwBiAGoAZQBjAHQA)|(?i:.*SAGUAbQBvAHYAZQAtAFcAbQBpAE8AYgBqAGUAYwB0A))|(?:(?i:.*UgBlAG0AbwB2AGUALQBDAGkAbQBJAG4AcwB0AGEAbgBjAGUA)|(?i:.*IAZQBtAG8AdgBlAC0AQwBpAG0ASQBuAHMAdABhAG4AYwBlA)|(?i:.*SAGUAbQBvAHYAZQAtAEMAaQBtAEkAbgBzAHQAYQBuAGMAZQ))))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With Encoded PowerShell</description>
+    <mitre>
+      <id>T1490</id>
+      <id>T1027.010</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Sysmon event 1 -->
+  <rule id="105051" level="13">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?s)^(?:(?i:PowerShell\.EXE$)|(?i:pwsh\.dll$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?:(?i:.*VwBpAG4AMwAyAF8AUwBoAGEAZABvAHcAYwBvAHAAeQ)|(?i:.*cAaQBuADMAMgBfAFMAaABhAGQAbwB3AGMAbwBwAHkA)|(?i:.*XAGkAbgAzADIAXwBTAGgAYQBkAG8AdwBjAG8AcAB5A))|(?:(?i:.*VwBpAG4AMwAyAF8AUwBoAGEAZABvAHcAQwBvAHAAeQ)|(?i:.*cAaQBuADMAMgBfAFMAaABhAGQAbwB3AEMAbwBwAHkA)|(?i:.*XAGkAbgAzADIAXwBTAGgAYQBkAG8AdwBDAG8AcAB5A))|(?:(?i:.*dwBpAG4AMwAyAF8AcwBoAGEAZABvAHcAYwBvAHAAeQ)|(?i:.*cAaQBuADMAMgBfAHMAaABhAGQAbwB3AGMAbwBwAHkA)|(?i:.*3AGkAbgAzADIAXwBzAGgAYQBkAG8AdwBjAG8AcAB5A))))(?=(?:(?:(?i:.*LgBEAGUAbABlAHQAZQAoA)|(?i:.*4ARABlAGwAZQB0AGUAKA)|(?i:.*uAEQAZQBsAGUAdABlACgA))|(?:(?i:.*LgBkAGUAbABlAHQAZQAoA)|(?i:.*4AZABlAGwAZQB0AGUAKA)|(?i:.*uAGQAZQBsAGUAdABlACgA))|(?:(?i:.*UgBlAG0AbwB2AGUALQBXAG0AaQBPAGIAagBlAGMAdA)|(?i:.*IAZQBtAG8AdgBlAC0AVwBtAGkATwBiAGoAZQBjAHQA)|(?i:.*SAGUAbQBvAHYAZQAtAFcAbQBpAE8AYgBqAGUAYwB0A))|(?:(?i:.*UgBlAG0AbwB2AGUALQBDAGkAbQBJAG4AcwB0AGEAbgBjAGUA)|(?i:.*IAZQBtAG8AdgBlAC0AQwBpAG0ASQBuAHMAdABhAG4AYwBlA)|(?i:.*SAGUAbQBvAHYAZQAtAEMAaQBtAEkAbgBzAHQAYQBuAGMAZQ))))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With Encoded PowerShell</description>
+    <mitre>
+      <id>T1490</id>
+      <id>T1027.010</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+  <!-- Security event 4688 -->
+  <rule id="105052" level="13">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?s)^(?:(?i:.*\\{1,2}powershell\.exe$)|(?i:.*\\{1,2}pwsh\.exe$))</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?s)^(?=(?:(?:(?i:.*VwBpAG4AMwAyAF8AUwBoAGEAZABvAHcAYwBvAHAAeQ)|(?i:.*cAaQBuADMAMgBfAFMAaABhAGQAbwB3AGMAbwBwAHkA)|(?i:.*XAGkAbgAzADIAXwBTAGgAYQBkAG8AdwBjAG8AcAB5A))|(?:(?i:.*VwBpAG4AMwAyAF8AUwBoAGEAZABvAHcAQwBvAHAAeQ)|(?i:.*cAaQBuADMAMgBfAFMAaABhAGQAbwB3AEMAbwBwAHkA)|(?i:.*XAGkAbgAzADIAXwBTAGgAYQBkAG8AdwBDAG8AcAB5A))|(?:(?i:.*dwBpAG4AMwAyAF8AcwBoAGEAZABvAHcAYwBvAHAAeQ)|(?i:.*cAaQBuADMAMgBfAHMAaABhAGQAbwB3AGMAbwBwAHkA)|(?i:.*3AGkAbgAzADIAXwBzAGgAYQBkAG8AdwBjAG8AcAB5A))))(?=(?:(?:(?i:.*LgBEAGUAbABlAHQAZQAoA)|(?i:.*4ARABlAGwAZQB0AGUAKA)|(?i:.*uAEQAZQBsAGUAdABlACgA))|(?:(?i:.*LgBkAGUAbABlAHQAZQAoA)|(?i:.*4AZABlAGwAZQB0AGUAKA)|(?i:.*uAGQAZQBsAGUAdABlACgA))|(?:(?i:.*UgBlAG0AbwB2AGUALQBXAG0AaQBPAGIAagBlAGMAdA)|(?i:.*IAZQBtAG8AdgBlAC0AVwBtAGkATwBiAGoAZQBjAHQA)|(?i:.*SAGUAbQBvAHYAZQAtAFcAbQBpAE8AYgBqAGUAYwB0A))|(?:(?i:.*UgBlAG0AbwB2AGUALQBDAGkAbQBJAG4AcwB0AGEAbgBjAGUA)|(?i:.*IAZQBtAG8AdgBlAC0AQwBpAG0ASQBuAHMAdABhAG4AYwBlA)|(?i:.*SAGUAbQBvAHYAZQAtAEMAaQBtAEkAbgBzAHQAYQBuAGMAZQ))))</field>
+    <description>DwellWatch stage 5: Shadow Copies Deleted With Encoded PowerShell</description>
+    <mitre>
+      <id>T1490</id>
+      <id>T1027.010</id>
+    </mitre>
+    <group>dwellwatch_stage5,</group>
+  </rule>
+</group>

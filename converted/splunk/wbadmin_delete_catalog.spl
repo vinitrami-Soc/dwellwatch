@@ -1,0 +1,1 @@
+Image="*\\wbadmin.exe" OR OriginalFileName="WBADMIN.EXE" CommandLine="*delete*" CommandLine="*catalog*"

@@ -30,6 +30,8 @@ jobs:
         run: |
           ruff check
           shellcheck datasets/fetch.sh
+      - name: Conversions in converted/ match the Sigma rules
+        run: python -m dwellwatch.convert --check
       - name: Fetch replay datasets
         run: datasets/fetch.sh
       - name: Tests, including the rules-on-real-data gate

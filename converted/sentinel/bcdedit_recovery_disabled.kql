@@ -1,0 +1,4 @@
+// Windows Recovery Disabled With bcdedit
+// Generated from sigma/stage5_backup_destruction/bcdedit_recovery_disabled.yml by dwellwatch.convert; do not edit.
+imProcessCreate
+| where (TargetProcessName endswith "\\bcdedit.exe" or TargetProcessFileOriginalName =~ "bcdedit.exe") and TargetProcessCommandLine matches regex "(?i)recoveryenabled\\s+\"?(no|off|false|0)\\b|bootstatuspolicy\\s+\"?ignoreallfailures"
