@@ -1,0 +1,47 @@
+title: Shadow Copies Deleted With Encoded PowerShell
+id: 1f2a159b-60e6-4315-a6a4-f3f1a4413f4d
+status: experimental
+description: |
+  Detects the PowerShell shadow-copy deletion of "Shadow Copies Deleted With PowerShell"
+  hidden with -EncodedCommand, which turns the script into base64 of its UTF-16 text. REvil
+  deletes shadow copies this way. Matching is on the encoded form, so only the spellings
+  listed below are caught: an attacker who writes WIN32_SHADOWCOPY in capitals, for example,
+  gets past it. PowerShell script block logging (event 4104) records the decoded script and
+  would close that gap. DwellWatch stage 5 (backup destruction).
+references:
+  - https://attack.mitre.org/techniques/T1490/
+  - https://attack.mitre.org/techniques/T1027/010/
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.impact
+  - attack.t1490
+  - attack.defense-evasion
+  - attack.t1027.010
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_img:
+    - Image|endswith:
+        - '\powershell.exe'
+        - '\pwsh.exe'
+    - OriginalFileName:
+        - 'PowerShell.EXE'
+        - 'pwsh.dll'
+  selection_class:
+    CommandLine|wide|base64offset|contains:
+      - 'Win32_Shadowcopy'
+      - 'Win32_ShadowCopy'
+      - 'win32_shadowcopy'
+  selection_delete:
+    CommandLine|wide|base64offset|contains:
+      - '.Delete('
+      - '.delete('
+      - 'Remove-WmiObject'
+      - 'Remove-CimInstance'
+  condition: all of selection_*
+falsepositives:
+  - Management tooling that deletes shadow copies through encoded PowerShell. Encoding is
+    unusual for legitimate administration, so treat any hit as worth a look.
+level: high

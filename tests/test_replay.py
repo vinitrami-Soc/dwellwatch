@@ -1,5 +1,6 @@
 """The replay engine itself: reading event files, normalising them, and evaluating Sigma."""
 
+import base64
 import codecs
 import json
 import textwrap
@@ -221,6 +222,21 @@ def test_numbers_null_and_cased_strings(tmp_path):
     assert not matches(rule, LogonType="10", CommandLine="Exact")
     assert not matches(rule, LogonType="3", CommandLine="exact")
     assert not matches(rule, LogonType="3", CommandLine="Exact", TargetDomainName="LAB")
+
+
+def test_base64_offset_finds_an_encoded_string_at_every_alignment(tmp_path):
+    rule = load_rule(write_rule(tmp_path, textwrap.dedent("""\
+        sel: {CommandLine|wide|base64offset|contains: 'Win32_Shadowcopy'}
+        condition: sel
+    """)))
+
+    def encoded(script):
+        return "powershell -enc " + base64.b64encode(script.encode("utf-16-le")).decode()
+
+    # Each extra character moves the string by two bytes, so these hit all three base64 alignments.
+    for prefix in ("", "x", "xy"):
+        assert matches(rule, CommandLine=encoded(prefix + "Get-WmiObject Win32_Shadowcopy"))
+    assert not matches(rule, CommandLine=encoded("Get-Process"))
 
 
 @pytest.mark.parametrize("kwargs, detection, reason", [

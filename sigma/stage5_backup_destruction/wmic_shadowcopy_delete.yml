@@ -1,0 +1,32 @@
+title: Shadow Copies Deleted With wmic
+id: 33b943df-d8c6-43cc-b49d-c72a5c2cced2
+status: experimental
+description: |
+  Detects wmic deleting volume shadow copies through the shadowcopy alias or the
+  Win32_ShadowCopy class. It is the usual fallback when vssadmin is blocked or watched,
+  and Chaos ransomware runs it straight after vssadmin. DwellWatch stage 5 (backup
+  destruction).
+references:
+  - https://attack.mitre.org/techniques/T1490/
+  - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1490/T1490.md
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.impact
+  - attack.t1490
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_img:
+    - Image|endswith: '\wmic.exe'
+    - OriginalFileName: 'wmic.exe' # still matches if the binary is renamed
+  selection_cli:
+    CommandLine|contains|all:
+      - 'shadowcopy' # also matches "path win32_shadowcopy"
+      - 'delete'
+  condition: all of selection_*
+falsepositives:
+  - Scripts that clean up shadow copies with wmic instead of vssadmin. Rare on servers, and
+    they should run from a known account.
+level: high

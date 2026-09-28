@@ -14,8 +14,8 @@
   <img alt="Mapped to MITRE ATT&CK" src="https://img.shields.io/badge/mapped%20to-MITRE%20ATT%26CK-c00">
 </p>
 
-> **Status: in progress.** Phases 0 and 1 are done: the replay engine and the first three rules
-> (stage 5, backup destruction), tested on real Atomic Red Team telemetry. Stages 1 to 4 and 6,
+> **Status: in progress.** Phases 0 and 1 are done: the replay engine and six rules for stage 5
+> (backup destruction), tested on real Atomic Red Team and ransomware telemetry. Stages 1 to 4 and 6,
 > correlation and the metric are still to come. See the [roadmap](#roadmap).
 
 **Headline metric:** _not measured yet._ Once the chain has been emulated, this line will read
@@ -61,17 +61,24 @@ Stages 1 to 5 happen during dwell time and are the ones worth catching. Stage 6 
 | 5 | [Shadow Copies Deleted With vssadmin](sigma/stage5_backup_destruction/vssadmin_shadow_delete.yml) | `vssadmin delete shadows` |
 | 5 | [Backup Catalogue Deleted With wbadmin](sigma/stage5_backup_destruction/wbadmin_delete_catalog.yml) | `wbadmin delete catalog` |
 | 5 | [Windows Recovery Disabled With bcdedit](sigma/stage5_backup_destruction/bcdedit_recovery_disabled.yml) | `bcdedit ... recoveryenabled no`, `bootstatuspolicy ignoreallfailures` |
+| 5 | [Shadow Copies Deleted With wmic](sigma/stage5_backup_destruction/wmic_shadowcopy_delete.yml) | `wmic shadowcopy delete` |
+| 5 | [Shadow Copies Deleted With PowerShell](sigma/stage5_backup_destruction/powershell_shadowcopy_delete.yml) | `Win32_ShadowCopy` with `.Delete()`, `Remove-WmiObject` or `Remove-CimInstance` |
+| 5 | [Shadow Copies Deleted With Encoded PowerShell](sigma/stage5_backup_destruction/powershell_encoded_shadowcopy_delete.yml) | the same, hidden with `-EncodedCommand` |
 
 On real data from Splunk's attack_data, the Atomic Red Team T1490 run (285 events) raises exactly
-one alert per targeted command, 4 in all, and none for the `cmd.exe` processes that launched them.
-A 7,010-event T1003.003 run, which uses vssadmin and wmic to *create* shadow copies, raises none.
+one alert per targeted command, 6 in all, and none for the `cmd.exe` processes that launched them.
+A 7,010-event T1003.003 run, which uses vssadmin, wmic and PowerShell to *create* shadow copies,
+raises none.
 
-Replayed unchanged against recordings they were not written against (ransomware runs from
-attack_data, including Chaos, Clop, Conti, LockBit, REvil and Ryuk, plus all 278 EVTX-ATTACK-SAMPLES
-files), the rules fired on **14 of 14** in-scope destructive commands with **no false positives in
-392,824 events**. The same data shows what they miss: wmic and PowerShell shadow-copy deletion,
-Clop's `vssadmin resize shadowstorage`, and ransomware that deletes copies without a command line.
-Details, the exact commands and the misses are in [docs/lab-architecture.md](docs/lab-architecture.md).
+The first three rules were then replayed unchanged against recordings they were not written
+against: ransomware runs from attack_data (Chaos, Clop, Conti, LockBit, REvil, Ryuk and others)
+and all 278 EVTX-ATTACK-SAMPLES files, 392,824 events. They fired on **14 of 14** in-scope
+destructive commands with **no false positives**. That data also showed the wmic, PowerShell and
+encoded PowerShell deletions they missed (REvil's, for one), so the last three rules were written
+to close that gap. On the same data all six rules now fire on 26 of 26 with no false positives,
+but for the last three that is a regression check, not an unseen test. Still missed: Clop's
+`vssadmin resize shadowstorage`. Details and exact commands are in
+[docs/lab-architecture.md](docs/lab-architecture.md).
 
 ## When a signal becomes an incident
 

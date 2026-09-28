@@ -1,0 +1,43 @@
+title: Shadow Copies Deleted With PowerShell
+id: 41271189-187d-4862-aaf8-f22ce19667a0
+status: experimental
+description: |
+  Detects PowerShell deleting volume shadow copies through WMI or CIM, for example
+  "Get-WmiObject Win32_ShadowCopy | ForEach-Object { $_.Delete() }" or
+  "Get-CimInstance Win32_ShadowCopy | Remove-CimInstance". This avoids vssadmin and wmic
+  entirely. The same commands hidden with -EncodedCommand are covered by a separate rule.
+  DwellWatch stage 5 (backup destruction).
+references:
+  - https://attack.mitre.org/techniques/T1490/
+  - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1490/T1490.md
+author: Vinit Rami
+date: 2026-09-28
+tags:
+  - attack.impact
+  - attack.t1490
+  - attack.execution
+  - attack.t1059.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_img:
+    - Image|endswith:
+        - '\powershell.exe'
+        - '\pwsh.exe'
+    - OriginalFileName:
+        - 'PowerShell.EXE'
+        - 'pwsh.dll'
+  selection_class:
+    CommandLine|contains: 'win32_shadowcopy'
+  selection_delete:
+    - CommandLine|contains:
+        - '.Delete('
+        - 'Remove-WmiObject'
+        - 'Remove-CimInstance'
+    - CommandLine|re|i: '\b(rwmi|rcim)\b' # the short aliases of the two cmdlets
+  condition: all of selection_*
+falsepositives:
+  - An administrator clearing old shadow copies from PowerShell. Rare, and it should come
+    from a known account inside a change window.
+level: high

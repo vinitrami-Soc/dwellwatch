@@ -34,6 +34,7 @@ from sigma.exceptions import SigmaError
 from sigma.rule import SigmaRule
 from sigma.types import (
     SigmaCasedString,
+    SigmaExpansion,
     SigmaNull,
     SigmaNumber,
     SigmaRegularExpression,
@@ -146,6 +147,9 @@ def _value_test(value: Any, path: Path) -> Callable[[str | None], bool]:
         return lambda actual: actual is not None and pattern.search(actual) is not None
     if isinstance(value, SigmaNumber):
         return lambda actual: actual is not None and _as_number(actual) == value.number
+    if isinstance(value, SigmaExpansion):  # e.g. base64offset: the value at each alignment, any may match
+        tests = [_value_test(variant, path) for variant in value.values]
+        return lambda actual: any(test(actual) for test in tests)
     raise UnsupportedRule(f"{path}: {type(value).__name__} values are not supported by replay")
 
 
