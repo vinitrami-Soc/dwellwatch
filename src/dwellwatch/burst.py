@@ -32,7 +32,8 @@ NOTE_WINDOW = timedelta(minutes=10)
 NOTE_BURST_RULE_ID = "0fbcaaab-4e91-4837-b258-0718e7acfda1"  # stands in for a Sigma rule's id
 NOTE_BURST_TITLE = "DwellWatch Same File Name Written Into Many Folders"
 
-Write = tuple[datetime, str, str | None]  # when, which folder, the account if Sysmon recorded one
+# When, which folder, the account if Sysmon recorded one, the file and the process, for the evidence.
+Write = tuple[datetime, str, str | None, str, str]
 
 
 class NoteBursts:
@@ -56,7 +57,8 @@ class NoteBursts:
             return
         process = event.get("ProcessGuid") or f"{event.get('ProcessId', '')}|{event.get('Image', '')}"
         key = (event.get("Computer", ""), process.lower(), name.lower())
-        self._writes[key].append((event_time(event), folder.lower(), event.get("User") or None))
+        self._writes[key].append((event_time(event), folder.lower(), event.get("User") or None,
+                                  event["TargetFilename"], event.get("Image", "")))
 
     def watch(self, events: Iterable[Event]) -> Iterator[Event]:
         """Pass `events` through unchanged, noting the file creations on the way."""
@@ -72,7 +74,7 @@ class NoteBursts:
             recent: deque[tuple[datetime, str]] = deque()
             folders: Counter[str] = Counter()
             fired = False
-            for when, folder, user in writes:
+            for when, folder, user, path, image in writes:
                 if recent and when - recent[-1][0] > self.window:
                     fired = False  # a quiet window: whatever comes next is a new spray
                 recent.append((when, folder))
@@ -92,6 +94,9 @@ class NoteBursts:
                         rule_id=NOTE_BURST_RULE_ID,
                         attack_technique="T1486",
                         severity=Severity.HIGH,
+                        evidence=(("Image", image), ("TargetFilename", path),
+                                  ("Folders", f"{len(folders)} within {self.window.total_seconds() / 60:g}"
+                                              " minutes")),
                     ))
         return sorted(found, key=lambda signal: (signal.timestamp, signal.host))
 

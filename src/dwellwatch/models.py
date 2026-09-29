@@ -20,6 +20,16 @@ class Stage(IntEnum):
     ENCRYPTION = 6           # impact: the backstop, not the goal
 
 
+STAGE_NAMES = {
+    Stage.HELPDESK_RESET: "help-desk reset",
+    Stage.REMOTE_DISCOVERY: "remote tooling and discovery",
+    Stage.CREDENTIAL_THEFT: "credential theft",
+    Stage.LATERAL_MOVEMENT: "lateral movement",
+    Stage.BACKUP_DESTRUCTION: "backup destruction",
+    Stage.ENCRYPTION: "encryption",
+}
+
+
 class Severity(IntEnum):
     """Sigma's `level` values, ordered so severities can be compared and maxed."""
 
@@ -76,6 +86,9 @@ class Signal:
     rule_id: str  # the Sigma rule's UUID
     attack_technique: str  # e.g. "T1490"
     severity: Severity
+    # The event fields behind the signal, as (name, value): what an analyst reads first, and
+    # where IntelPulse finds the indicators to enrich (a process's SHA-256, a source address).
+    evidence: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         _require_aware(self.timestamp)

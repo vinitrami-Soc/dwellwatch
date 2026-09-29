@@ -14,11 +14,11 @@
   <img alt="Mapped to MITRE ATT&CK" src="https://img.shields.io/badge/mapped%20to-MITRE%20ATT%26CK-c00">
 </p>
 
-> **Status: in progress.** Phases 0 to 5 are done: the replay engine, 26 Sigma rules and two
+> **Status: in progress.** Phases 0 to 6 are done: the replay engine, 26 Sigma rules and two
 > counters across all six stages, tested on real Atomic Red Team, ransomware and attack-sample
 > telemetry and converted for Wazuh, Splunk and Sentinel, the correlation engine that turns them
-> into incidents, and the metric below. The live lab, the IntelPulse webhook and the help-desk
-> pages are still to come. See the [roadmap](#roadmap).
+> into incidents, the metric below, and the push of each incident to IntelPulse for enrichment and
+> a ticket. The live lab and the help-desk pages are still to come. See the [roadmap](#roadmap).
 
 **Headline metric:** First alert fired a median of 0.9 minutes before encryption in 6 of 11
 replayed ransomware runs. No correlated incident was raised before encryption in any of them.
@@ -182,6 +182,67 @@ result. The command line runs both counters (note sprays, new sources) alongside
 same rule is written in Sigma's correlation syntax in
 [`sigma/correlation/two_stage_24h.yml`](sigma/correlation/two_stage_24h.yml).
 
+## From log to ticket
+
+DwellWatch detects and correlates; [IntelPulse](https://github.com/vinitrami-Soc/intelpulse)
+enriches and writes the ticket. Together with [PhishHawk](https://github.com/vinitrami-Soc/phishhawk),
+which triages the phishing email an intrusion often starts with, they make one pipeline:
+
+```mermaid
+flowchart LR
+    mail["Reported phishing email"] --> ph["PhishHawk<br/>email triage"]
+    logs["Windows hosts<br/>Sysmon and Security logs"] --> det["DwellWatch<br/>26 Sigma rules and 2 counters"]
+    det -->|signals| corr["DwellWatch<br/>correlation: two stages,<br/>one host or account, 24 hours"]
+    corr -->|"incident, defanged<br/>POST /api/alerts"| ip["IntelPulse<br/>extract indicators,<br/>threat intel, score"]
+    ph -.->|"indicators<br/>(not wired yet)"| ip
+    ip --> ticket["Case and SOC ticket<br/>Markdown, JSON, Jira, ServiceNow"]
+```
+
+`python -m dwellwatch.correlate FILES --push` sends each incident to IntelPulse's `POST /api/alerts`
+([`webhook.py`](src/dwellwatch/webhook.py)). The alert carries the incident's severity and reason,
+the host and accounts it concerns, its ATT&CK techniques, and the events behind it (at most five per
+rule) with the fields that fired each one. IntelPulse pulls indicators out of those events (the
+SHA-256 of every process a signal names, addresses, URLs), queries its threat-intelligence sources,
+and writes a ticket that opens with DwellWatch's account of the incident and a timeline. Its
+priority is the higher of the alert's severity and the threat-intelligence verdict, so a critical
+incident whose binaries no source has seen before is still a P1, and its containment section says
+what to do about the hosts and accounts involved rather than "no action required".
+
+- **Defanged.** URLs, IP addresses and domain names in the alert are defanged (`hxxp`, `[.]`) before
+  they leave, so no log line or ticket holds a live link; IntelPulse refangs them to look them up.
+- **Retries are free.** Each alert's id is fixed by the incident's entity, first signal and stages:
+  pushing the same incident again returns IntelPulse's first case without spending any
+  threat-intelligence quota, and an incident that gains a stage is a new alert.
+- **A dead IntelPulse never stops detection.** Unreachable, slow (10-second timeout), refusing or
+  redirecting, the push is reported with the reason and the run carries on and exits 0.
+  Redirects are never followed, so the token cannot be carried anywhere else.
+- **Configured, not committed.** `INTELPULSE_WEBHOOK_URL`, and `INTELPULSE_API_TOKEN` if IntelPulse
+  sets `API_TOKEN`, come from the environment or `.env` ([`.env.example`](.env.example)).
+
+To run it: start IntelPulse (`make install && make dev` in its repository, on port 8000), copy
+`.env.example` to `.env`, then:
+
+```
+$ python -m dwellwatch.correlate datasets/attack_data/datasets/malware/ransomware_ttp/data2/windows-sysmon.log --push
+85 signal(s), 1 incident(s)
+
+CRITICAL  host win-dc-385  2021-06-21 14:30Z to 2021-06-21 14:31Z  85 signal(s)
+  Stages 5 (backup destruction) and 6 (encryption) on host win-dc-385 within 1m; critical because it includes backup destruction.
+
+pushed 1 of 1 incident(s) to IntelPulse
+  dw-a39ad724d4e8740c: case d38642aa-…, ticket level critical, report /api/cases/d38642aa-…/report
+```
+
+That run was made end to end on 2026-09-29 against IntelPulse running locally with an API token:
+the incident became a case whose ticket leads with the alert and its timeline, a second push
+returned the same case marked as already received, a push without the token was refused with
+IntelPulse's reason, and with IntelPulse stopped the run reported the refused connection and
+exited 0. With no threat-intelligence keys configured, the one indicator (the SHA-256 of the
+PowerShell that deleted the shadow copies) came back unknown, so the ticket's priority came from
+DwellWatch's severity. The tests cover the same ground against a stand-in IntelPulse
+([`tests/test_webhook.py`](tests/test_webhook.py)), and IntelPulse's side has its own
+(`backend/tests/test_alerts.py` there).
+
 ## How it runs
 
 - **Replay mode** runs the rules offline against recorded Windows event logs, today from
@@ -220,7 +281,7 @@ express, and the converter problems found on the way, are in the
 - [x] **Phase 3:** rules for stages 1 to 4 and 6
 - [x] **Phase 4:** the correlation engine
 - [x] **Phase 5:** the dwell-time metric
-- [ ] **Phase 6:** IntelPulse webhook integration
+- [x] **Phase 6:** IntelPulse webhook integration
 - [ ] **Phase 7:** help-desk checklist and small-business readiness page
 
 ## Repository layout
@@ -263,7 +324,7 @@ the variables.
 
 ## Related projects
 
-DwellWatch is one of three SOC projects that fit together:
+DwellWatch is one of three SOC projects that fit together, as [one pipeline](#from-log-to-ticket):
 
 - [PhishHawk](https://github.com/vinitrami-Soc/phishhawk) triages reported phishing email.
 - [IntelPulse](https://github.com/vinitrami-Soc/intelpulse) enriches indicators and writes the ticket.

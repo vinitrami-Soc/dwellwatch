@@ -8,7 +8,8 @@ stages of the chain within a day is how a help-desk-led intrusion looks, so that
 
 Signals come from the rules and from two counters that Sigma cannot express: ransom-note sprays
 (burst.py, stage 6) and accounts reaching several hosts from a new source (newsource.py, stage 4).
-`--baseline` gives the new-source counter normal activity recorded earlier, to learn from.
+`--baseline` gives the new-source counter normal activity recorded earlier, to learn from, and
+`--push` sends every incident to IntelPulse for enrichment and a ticket (webhook.py).
 
 How it decides, in order:
 
@@ -38,22 +39,15 @@ from pathlib import Path
 from sigma.exceptions import SigmaError
 
 from .burst import NoteBursts
-from .models import Incident, Severity, Signal, Stage, account_key, host_key
+from .models import STAGE_NAMES, Incident, Severity, Signal, Stage, account_key, host_key
 from .newsource import NewSources
 from .replay import RULES_DIR, Event, Rule, load_events, load_rules, replay
+from .webhook import endpoint, push, rule_titles
 
 WINDOW = timedelta(hours=24)  # two stages this close are an incident
 CLOSE = timedelta(hours=1)  # two stages this close are critical
 CRITICAL_STAGES = frozenset({Stage.CREDENTIAL_THEFT, Stage.BACKUP_DESTRUCTION})
 
-STAGE_NAMES = {
-    Stage.HELPDESK_RESET: "help-desk reset",
-    Stage.REMOTE_DISCOVERY: "remote tooling and discovery",
-    Stage.CREDENTIAL_THEFT: "credential theft",
-    Stage.LATERAL_MOVEMENT: "lateral movement",
-    Stage.BACKUP_DESTRUCTION: "backup destruction",
-    Stage.ENCRYPTION: "encryption",
-}
 
 
 def correlate(signals: Iterable[Signal], window: timedelta = WINDOW) -> list[Incident]:
@@ -188,11 +182,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--baseline", type=Path, action="append", default=[], metavar="FILE",
                         help="normal activity from before the datasets, which only teaches the new-source "
                              "counter which sources each account uses; repeat for more files")
+    parser.add_argument("--push", action="store_true",
+                        help="push every incident to IntelPulse (INTELPULSE_WEBHOOK_URL, and INTELPULSE_API_TOKEN "
+                             "if it needs one, from the environment or .env)")
     args = parser.parse_args(argv)
 
     try:
-        signals = detect(args.datasets, load_rules(args.rules), args.baseline)
-    except (OSError, ValueError, SigmaError) as error:
+        target = endpoint() if args.push else None  # a push that cannot happen is said before the replay
+        rules = load_rules(args.rules)
+        signals = detect(args.datasets, rules, args.baseline)
+    except (OSError, ValueError, SigmaError) as error:  # ConfigurationError is a ValueError
         print(f"error: {error}", file=sys.stderr)
         return 2
     incidents = correlate(signals)
@@ -202,6 +201,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n{incident.severity.name}  {incident.entity_kind} {incident.entity}  "
               f"{first:%Y-%m-%d %H:%M}Z to {last:%Y-%m-%d %H:%M}Z  {len(incident.signals)} signal(s)")
         print(f"  {incident.reason}")
+    if target is not None:
+        # A dead or refusing IntelPulse is reported, never fatal: the detection above stands.
+        deliveries = push(incidents, rule_titles(rules), target)
+        print(f"\npushed {sum(d.delivered for d in deliveries)} of {len(deliveries)} incident(s) to IntelPulse")
+        for delivery in deliveries:
+            stream = sys.stdout if delivery.delivered else sys.stderr
+            print(f"  {delivery.alert_id}: {delivery.detail}", file=stream)
     return 0
 
 

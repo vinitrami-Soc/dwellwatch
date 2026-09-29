@@ -49,6 +49,7 @@ class Logon(NamedTuple):
     user: str  # the account as logged, for the signal
     computer: str  # the host as logged, for the signal
     learning_only: bool  # from a baseline: teaches what is normal, never alerts
+    logon_type: str = ""
 
 
 def remote_logon(event: Event, *, learning_only: bool = False) -> Logon | None:
@@ -63,7 +64,8 @@ def remote_logon(event: Event, *, learning_only: bool = False) -> Logon | None:
         return None
     domain, _, name = account.rpartition("\\")
     account = f"{host}\\{name}" if host_key(domain) == host else name
-    return Logon(event_time(event), account, source, host, event["User"], event.get("Computer", ""), learning_only)
+    return Logon(event_time(event), account, source, host, event["User"], event.get("Computer", ""), learning_only,
+                 event.get("LogonType", ""))
 
 
 def _source(event: Event) -> str | None:
@@ -138,6 +140,8 @@ class NewSources:
                         rule_id=NEW_SOURCE_RULE_ID,
                         attack_technique="T1021",
                         severity=Severity.MEDIUM,
+                        evidence=(("IpAddress", logon.source), ("LogonType", logon.logon_type),
+                                  ("Hosts", ", ".join(sorted(reached)))),
                     ))
         return found
 

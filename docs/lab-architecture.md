@@ -448,4 +448,7 @@ Not built yet. The plan, from the project brief:
   new-source counter knows which sources each account normally uses
   (`python -m dwellwatch.correlate --baseline`).
 - **Emulation:** Atomic Red Team only, on snapshotted VMs that nothing else depends on.
+- **Enrichment and tickets:** every incident pushed to an IntelPulse instance on the same network
+  (`python -m dwellwatch.correlate --push`; see the README's
+  [From log to ticket](../README.md#from-log-to-ticket)).
 - **Versions:** pinned here once installed. The Wazuh 4.14.x line is the target.

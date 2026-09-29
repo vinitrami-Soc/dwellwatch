@@ -347,6 +347,30 @@ def _as_number(text: str) -> int | float | None:
 
 # --- replay -----------------------------------------------------------------------------------
 
+# The event fields a signal carries as evidence, in this order, when the event has them: the
+# process and its command line, what it opened or wrote, and for Security events who and from where.
+EVIDENCE_FIELDS = (
+    "Image", "CommandLine", "ParentImage", "Hashes", "SourceImage", "TargetImage", "GrantedAccess",
+    "TargetFilename", "SubjectUserName", "TargetUserName", "MemberName", "IpAddress", "LogonType",
+)
+EVIDENCE_CHARS = 1_000
+SHA256 = re.compile(r"SHA256=([0-9A-Fa-f]{64})")
+
+
+def evidence(event: Event) -> tuple[tuple[str, str], ...]:
+    """The fields of `event` worth showing, trimmed. Of Sysmon's Hashes only the SHA-256 is kept:
+    the IMPHASH looks like an MD5 to an indicator extractor, and is not a file's hash."""
+    kept = []
+    for name in EVIDENCE_FIELDS:
+        value = (event.get(name) or "").strip()
+        if name == "Hashes":
+            match = SHA256.search(value)
+            value = f"SHA256={match.group(1)}" if match else ""
+        if value and value != "-":
+            kept.append((name, value if len(value) <= EVIDENCE_CHARS else value[: EVIDENCE_CHARS - 1] + "…"))
+    return tuple(kept)
+
+
 
 def replay(events: Iterable[Event], rules: Iterable[Rule]) -> list[Signal]:
     """Run every rule over every event it covers. Signals come back in time order."""
@@ -365,6 +389,7 @@ def replay(events: Iterable[Event], rules: Iterable[Rule]) -> list[Signal]:
                     rule_id=rule.id,
                     attack_technique=rule.attack_technique,
                     severity=rule.severity,
+                    evidence=evidence(event),
                 ))
     return sorted(signals, key=lambda signal: signal.timestamp)
 
