@@ -14,11 +14,12 @@
   <img alt="Mapped to MITRE ATT&CK" src="https://img.shields.io/badge/mapped%20to-MITRE%20ATT%26CK-c00">
 </p>
 
-> **Status: in progress.** Phases 0 to 6 are done: the replay engine, 26 Sigma rules and two
-> counters across all six stages, tested on real Atomic Red Team, ransomware and attack-sample
-> telemetry and converted for Wazuh, Splunk and Sentinel, the correlation engine that turns them
-> into incidents, the metric below, and the push of each incident to IntelPulse for enrichment and
-> a ticket. The live lab and the help-desk pages are still to come. See the [roadmap](#roadmap).
+> **Status: all seven phases of the build plan are done; the live lab is next.** The replay engine,
+> 26 Sigma rules and two counters across all six stages, tested on real Atomic Red Team, ransomware
+> and attack-sample telemetry and converted for Wazuh, Splunk and Sentinel; the correlation engine
+> that turns them into incidents; the metric below; the push of each incident to IntelPulse for
+> enrichment and a ticket; and the help-desk checklist and small-business page. See the
+> [roadmap](#roadmap).
 
 **Headline metric:** First alert fired a median of 0.9 minutes before encryption in 6 of 11
 replayed ransomware runs. No correlated incident was raised before encryption in any of them.
@@ -35,8 +36,10 @@ It emulates the attack chain seen in the 2025 attacks on UK retailers stage by s
 Sigma rules for each stage (converted to Wazuh, Splunk SPL and Microsoft Sentinel KQL), correlates
 several weak signals on the same user or host into one high-confidence incident, and pushes that
 incident to [IntelPulse](https://github.com/vinitrami-Soc/intelpulse) for enrichment and a ticket.
-It also produces a one-page help-desk verification checklist and a small-business readiness page,
-so it is useful to people outside a SOC too.
+It also produces a one-page [help-desk verification checklist](docs/helpdesk-checklist.md) and a
+[small-business readiness page](docs/smb-readiness.md), so it is useful to people outside a SOC too.
+Where the chain comes from, and what DwellWatch does not cover, is in the
+[threat model](docs/threat-model.md).
 
 ## Why dwell time
 
@@ -282,7 +285,9 @@ express, and the converter problems found on the way, are in the
 - [x] **Phase 4:** the correlation engine
 - [x] **Phase 5:** the dwell-time metric
 - [x] **Phase 6:** IntelPulse webhook integration
-- [ ] **Phase 7:** help-desk checklist and small-business readiness page
+- [x] **Phase 7:** help-desk checklist and small-business readiness page
+- [ ] **Next:** the live lab (DC, Windows 11, Wazuh manager), the emulated chain, and the metric's
+  second table measured on it
 
 ## Repository layout
 
@@ -294,7 +299,8 @@ src/dwellwatch/   replay, correlation, metric and webhook code
 tests/            offline pytest suite, run in CI
 datasets/         fetch.sh (replay data, never committed) and runs.yml (the metric's runs, labelled)
 atomics/          notes on each Atomic Red Team run
-docs/             lab architecture, threat model, detection catalogue, method
+docs/             threat model, lab architecture, detection catalogue, metric method,
+                  help-desk checklist, small-business readiness page
 ```
 
 ## Development
