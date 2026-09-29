@@ -252,8 +252,11 @@ DwellWatch's severity. The tests cover the same ground against a stand-in IntelP
   [Splunk attack_data](https://github.com/splunk/attack_data), fetched at a pinned commit and
   checked against pinned SHA-256 hashes. It needs no virtual machines, works on a 16 GB laptop
   and is what CI runs.
-- **Live mode** (planned) runs [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team)
-  tests on lab VMs (domain controller, Windows 11, Wazuh manager) and detects them in Wazuh.
+- **Live mode** runs [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) tests on a lab
+  VM and replays its exported logs the same way. [`lab/`](lab) builds a one-VM lab on VirtualBox
+  for hosts with less than 16 GB (`cd lab && vagrant up`): Windows 11 with Sysmon and Security
+  auditing set to record everything the rules read, and a share of dummy files and canaries. It is
+  scripted and checked, not yet run; the full four-VM lab is still a plan.
 
 See [docs/lab-architecture.md](docs/lab-architecture.md) for both.
 
@@ -286,8 +289,8 @@ express, and the converter problems found on the way, are in the
 - [x] **Phase 5:** the dwell-time metric
 - [x] **Phase 6:** IntelPulse webhook integration
 - [x] **Phase 7:** help-desk checklist and small-business readiness page
-- [ ] **Next:** the live lab (DC, Windows 11, Wazuh manager), the emulated chain, and the metric's
-  second table measured on it
+- [ ] **Live lab:** the one-VM lab is scripted (`lab/`); next are running it, the emulated chain,
+  the metric's second table measured on it, and the full lab with a domain controller and Wazuh
 
 ## Repository layout
 
@@ -295,6 +298,7 @@ express, and the converter problems found on the way, are in the
 sigma/            detection rules, one folder per stage, plus correlation/  (source of truth)
 converted/        generated Wazuh, Splunk and Sentinel versions of every rule
 wazuh/            hand-written Wazuh FIM rules and agent config for stage 6 (not from Sigma)
+lab/              the live lab: Vagrantfile, provisioning, Sysmon config, log export
 src/dwellwatch/   replay, correlation, metric and webhook code
 tests/            offline pytest suite, run in CI
 datasets/         fetch.sh (replay data, never committed) and runs.yml (the metric's runs, labelled)

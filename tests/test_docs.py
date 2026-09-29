@@ -11,7 +11,7 @@ import pytest
 
 from conftest import ROOT
 
-DOCS = [ROOT / "README.md", *sorted((ROOT / "docs").glob("*.md"))]
+DOCS = [ROOT / "README.md", *sorted((ROOT / "docs").glob("*.md")), *sorted((ROOT / "atomics").glob("*.md"))]
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 FENCE = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
 

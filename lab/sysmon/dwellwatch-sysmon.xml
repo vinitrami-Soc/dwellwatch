@@ -1,0 +1,29 @@
+<!--
+  Sysmon configuration for the DwellWatch lab VM. It records what DwellWatch's rules read, and
+  records it broadly: a lab is quiet enough that volume is not a problem, and a filter that drops
+  a ransom note in an unexpected folder would hide exactly what the counters look for.
+
+    Event 1  (process creation): every process, with its SHA-256 (sent to IntelPulse) and, for
+             parity with the recordings the rules were tested on, MD5 and IMPHASH.
+    Event 10 (process access): only access into lsass.exe, which is all the stage 3 rule reads.
+    Event 11 (file creation): every file, so the note-spray counter and the canary rule see all.
+
+  Installed by lab/provision/sysmon.ps1. Schema 4.90 is Sysmon 15's.
+-->
+<Sysmon schemaversion="4.90">
+  <HashAlgorithms>MD5,SHA256,IMPHASH</HashAlgorithms>
+  <CheckRevocation>False</CheckRevocation>
+  <EventFiltering>
+    <RuleGroup name="process creation: everything" groupRelation="or">
+      <ProcessCreate onmatch="exclude" />
+    </RuleGroup>
+    <RuleGroup name="process access: into lsass only" groupRelation="or">
+      <ProcessAccess onmatch="include">
+        <TargetImage condition="end with">\lsass.exe</TargetImage>
+      </ProcessAccess>
+    </RuleGroup>
+    <RuleGroup name="file creation: everything" groupRelation="or">
+      <FileCreate onmatch="exclude" />
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>

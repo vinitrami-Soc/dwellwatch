@@ -1,0 +1,39 @@
+# DwellWatch's lean live lab: one Windows 11 VM on VirtualBox, for hosts with less than 16 GB of
+# RAM. What it records, and what it cannot, is in docs/lab-architecture.md#live-lab.
+#
+#   cd lab && vagrant up            build and provision ws01 (first run downloads the box)
+#   vagrant snapshot save ws01 clean
+#   ... emulate, export (lab/run/export-events.ps1), replay on the host ...
+#   vagrant snapshot restore ws01 clean
+#
+# DWELLWATCH_BOX picks a different Windows 11 box; DWELLWATCH_VM_MB the VM's memory.
+
+BOX = ENV.fetch("DWELLWATCH_BOX", "gusztavvargadr/windows-11")
+MEMORY_MB = Integer(ENV.fetch("DWELLWATCH_VM_MB", "4096"))
+
+Vagrant.configure("2") do |config|
+  config.vm.box = BOX
+  config.vm.communicator = "winrm"
+  config.vm.boot_timeout = 900
+
+  config.vm.define "ws01" do |ws|
+    ws.vm.hostname = "ws01"
+    # Host-only: the host and the VM reach each other, nothing else does. Vagrant's own NAT
+    # adapter is used for setup downloads; docs/lab-architecture.md says how to cut it for a run.
+    ws.vm.network "private_network", ip: "192.168.56.20"
+
+    ws.vm.provider "virtualbox" do |vb|
+      vb.name = "dwellwatch-ws01"
+      vb.memory = MEMORY_MB
+      vb.cpus = 2
+      vb.gui = false
+      # Nothing crosses between the VM and the host except the shared lab/ folder.
+      vb.customize ["modifyvm", :id, "--clipboard-mode", "disabled", "--drag-and-drop", "disabled"]
+    end
+
+    ws.vm.provision "shell", path: "provision/audit-policy.ps1"
+    ws.vm.provision "file", source: "sysmon/dwellwatch-sysmon.xml", destination: "C:/DwellWatch/dwellwatch-sysmon.xml"
+    ws.vm.provision "shell", path: "provision/sysmon.ps1"
+    ws.vm.provision "shell", path: "provision/canaries.ps1"
+  end
+end

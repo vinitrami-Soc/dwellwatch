@@ -5,7 +5,7 @@ DwellWatch runs in two modes that share the same rules and the same Python code.
 | Mode | Where the events come from | Status |
 |---|---|---|
 | **Replay** | Recorded Windows event logs from Splunk's [attack_data](https://github.com/splunk/attack_data), fetched by `datasets/fetch.sh` | Built (Phase 1). Runs on a laptop and in CI |
-| **Live** | Atomic Red Team tests run on lab VMs, collected by Wazuh | Planned; see [Live lab](#live-lab-planned) |
+| **Live** | Atomic Red Team tests run on a lab VM, its logs exported and replayed | Scripted as a one-VM lab for small hosts, not yet run; see [Live lab](#live-lab) |
 
 ## Replay datasets
 
@@ -433,22 +433,76 @@ equivalent KQL by hand.
    keyword searches, a logsource with no mapping yet) is rejected when it is loaded, with its
    path and the reason. It is never silently treated as "no match".
 
-## Live lab (planned)
+## Live lab
 
-Not built yet. The plan, from the project brief:
+The brief plans a full lab (a domain controller, Windows 11, a Wazuh manager and Kali, about 32 GB
+of RAM). For hosts with less than 16 GB, `lab/` builds the brief's fallback instead: **one Windows
+11 VM on VirtualBox**, recording everything the rules read, with its logs exported to the host and
+run through the same replay and correlation as the recordings.
 
-- **VMs:** a Windows Server domain controller, a Windows 11 workstation, a Wazuh manager and a
-  Kali attacker, on an isolated host-only network. Comfortable on 32 GB of RAM; on 16 GB, run
-  one Windows VM at a time or stay in replay mode, where the detection work is identical.
-- **Telemetry:** Sysmon and Windows Security auditing (including process command lines) on
-  both Windows machines, shipped by the Wazuh agent, plus Wazuh file integrity monitoring with
-  who-data on the file share and shared documents, where the canary files live
-  ([`wazuh/agent_syscheck.xml`](../wazuh/agent_syscheck.xml)).
-- **Baseline:** at least 14 days of ordinary activity recorded before any emulation, so the
-  new-source counter knows which sources each account normally uses
-  (`python -m dwellwatch.correlate --baseline`).
-- **Emulation:** Atomic Red Team only, on snapshotted VMs that nothing else depends on.
-- **Enrichment and tickets:** every incident pushed to an IntelPulse instance on the same network
-  (`python -m dwellwatch.correlate --push`; see the README's
-  [From log to ticket](../README.md#from-log-to-ticket)).
-- **Versions:** pinned here once installed. The Wazuh 4.14.x line is the target.
+| | The lean lab |
+|---|---|
+| VM | `ws01`: Windows 11 Enterprise evaluation, from the Vagrant box `gusztavvargadr/windows-11` (community built; set `DWELLWATCH_BOX` for another) |
+| Size | 4 GB of RAM (`DWELLWATCH_VM_MB`; Windows 11 needs 4 GB), 2 vCPUs |
+| Network | host-only `192.168.56.20`, plus Vagrant's NAT adapter for setup downloads, cut during runs (below) |
+| Telemetry | Security auditing by subcategory, command lines in 4688 ([`audit-policy.ps1`](../lab/provision/audit-policy.ps1)); Sysmon events 1, 10 (into lsass) and 11, unfiltered ([`dwellwatch-sysmon.xml`](../lab/sysmon/dwellwatch-sysmon.xml), installed by [`sysmon.ps1`](../lab/provision/sysmon.ps1) only if Microsoft's signature checks out) |
+| Data at risk | `C:\Shares\Finance`: dummy text files with office names, and canary files carrying the `dwellwatch-canary` token ([`canaries.ps1`](../lab/provision/canaries.ps1)) |
+| Detection | on the host: exported logs ([`export-events.ps1`](../lab/run/export-events.ps1)) through `python -m dwellwatch.correlate`. No Wazuh manager: it needs more memory than such a host has left |
+
+`tests/test_lab.py` checks that this configuration records every event the rules read, that the
+canaries sit where both canary rules look, and that replay reads what the export writes. The
+scripts pass PowerShell's parser and PSScriptAnalyzer, but have not yet been run on a VM.
+
+**What one VM can and cannot produce.** The brief accepts this trade: every stage but native
+lateral movement.
+
+| Stage | In the lean lab | Still from recordings |
+|---|---|---|
+| 1 Help-desk reset | a local account's password reset (4724), an add to the local Administrators group (4732) | domain resets, Domain Admins adds |
+| 2 Remote tooling and discovery | remote access tools starting, discovery commands | domain trust discovery that needs a domain to answer |
+| 3 Credential theft | access to LSASS | NTDS.dit copies and DCSync, which need a domain controller |
+| 4 Lateral movement | nothing: one host has nowhere to move | PsExec, WMI, RDP and new-source recordings |
+| 5 Backup destruction | shadow-copy and recovery deletion | |
+| 6 Encryption | Atomic Red Team T1486 against the dummy files, the canaries, the note spray | |
+
+### Running it
+
+1. Install [VirtualBox](https://www.virtualbox.org/) 7 and [Vagrant](https://developer.hashicorp.com/vagrant).
+2. `cd lab && vagrant up`. The first run downloads the box, several GB. Provisioning prints each
+   audit subcategory turned on, the Sysmon version installed and the share created.
+3. `vagrant snapshot save ws01 clean`, the state every run starts from.
+4. **Baseline.** Use the VM as a person would for a while, then export (step 7) and keep that
+   folder: the new-source counter learns from it (`--baseline`).
+5. **Emulate.** Install Invoke-AtomicRedTeam inside the VM as
+   [Red Canary documents it](https://github.com/redcanaryco/invoke-atomicredteam/wiki), fetch each
+   test's prerequisites while the VM is still online, then `vagrant snapshot save ws01 ready` and cut
+   the internet: `VBoxManage controlvm dwellwatch-ws01 setlinkstate1 off` (the host-only adapter
+   stays). Run the tests on this VM only, never on the host, and record each one in
+   [`atomics/`](../atomics/README.md): the metric needs the times.
+6. `VBoxManage controlvm dwellwatch-ws01 setlinkstate1 on`, so Vagrant can reach the VM again.
+7. **Export.** `vagrant winrm --elevated --command "& C:\vagrant\run\export-events.ps1"`. The
+   files land in `lab/exports/<time>/` on the host (ignored by git: they name the lab's hosts and
+   accounts).
+8. **Detect.** `python -m dwellwatch.correlate lab/exports/<time>/*.xml --baseline
+   lab/exports/<baseline>/security.xml`, and `--push` to send incidents to IntelPulse.
+9. `vagrant snapshot restore ws01 clean`.
+
+Safety: the VM has no internet during a run, the clipboard and drag-and-drop are off, the only
+data it can damage is dummy, and every run ends by restoring the snapshot.
+
+### Versions
+
+| Component | Version |
+|---|---|
+| Sysmon | the current Sysinternals release, which is all Sysinternals serves; `sysmon.ps1` checks its Microsoft signature and prints the version, which goes in the run notes |
+| Sysmon configuration | [`lab/sysmon/dwellwatch-sysmon.xml`](../lab/sysmon/dwellwatch-sysmon.xml), schema 4.90 (Sysmon 15) |
+| Windows 11 | the box version `vagrant box list` shows, recorded in the run notes |
+| Wazuh | 4.14.8, for the converted rules and the FIM concept; not part of the lean lab |
+
+### The full lab (not scripted yet)
+
+The brief's plan, for a host with about 32 GB: a Windows Server domain controller and a Windows 11
+workstation, both with the telemetry above shipped by the Wazuh agent, file integrity monitoring
+with who-data on the share ([`wazuh/agent_syscheck.xml`](../wazuh/agent_syscheck.xml)), a Wazuh
+4.14.8 manager running the converted rules, and Kali, on an isolated host-only network. It would
+extend the same Vagrantfile, and bring stages 3 and 4 into the lab.

@@ -27,6 +27,10 @@ datasets/*
 !datasets/fetch.sh
 !datasets/runs.yml
 
+# The live lab: Vagrant's state, and exported event logs, which name the lab's hosts and accounts
+lab/.vagrant/
+lab/exports/
+
 # Editors and OS
 .vscode/
 .idea/
